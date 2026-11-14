@@ -15,8 +15,13 @@ The merge of the release pull request is the last manual step. The pull request 
 publishes the release.
 
 - **Where:** a job `release` at the end of `ci.yml`, on runs of `main` that are not pull requests (the push of the
-  merge, or a run by hand to retry), after every other job of the same run passed. A commit whose checks fail is never
-  tagged. A separate workflow on `workflow_run` was the alternative; it is harder to follow and zizmor reports that
+  merge; re-running the jobs of its run retries), after every other job of the same run passed. A commit whose checks
+  fail is never tagged.
+- **Which commit:** only the commit of `main` that raised `ModuleVersion` (the latest first-parent commit whose diff
+  touches the line `ModuleVersion = 'X.Y.Z'`, in a checkout with the full history) publishes; any other run without a
+  release does nothing. Runs of `main` can finish out of order, and GitHub replaces a pending run with a newer one in
+  the same concurrency group, so a later commit would otherwise take the place of the release merge for good. For the
+  same reason every run of `main` has a concurrency group of its own commit. A separate workflow on `workflow_run` was the alternative; it is harder to follow and zizmor reports that
   trigger as dangerous.
 - **What:** `tools/Publish-Release.ps1` reads `ModuleVersion`. Without a release `vX.Y.Z` it publishes one at the
   commit of the run: title `vX.Y.Z`, the body of the changelog section, marked Latest, never a draft. A pull request

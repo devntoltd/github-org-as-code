@@ -10,10 +10,11 @@ on:
 permissions:
   contents: read
 
-# One run per pull request: a new push cancels the run of the previous one. Pushes to main are never
-# cancelled, so every commit on main keeps its own complete result.
+# One run per pull request: a new push cancels the run of the previous one. A run of main has a group of its own
+# commit: in a shared group GitHub replaces a pending run with a newer one even without cancel-in-progress, so every
+# commit of main keeps its own complete result, and the run of a release merge is never dropped.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -164,9 +165,10 @@ jobs:
         run: ./tools/Invoke-Coverage.ps1 -Output Detailed
 
   # The merge of a release pull request (ModuleVersion raised, its CHANGELOG.md section in place) tags the commit and
-  # publishes the release; on any other commit of main the release exists and the script does nothing. Only main, never
-  # a pull request, and only after every other job of this run passed, so a failing commit is never tagged. A run by
-  # hand on main retries a release that stopped (docs/decisions/2026-11-14-release-workflow.md).
+  # publishes the release; on any other commit of main the script does nothing: the release exists, or it belongs to
+  # the commit that raised the version, found in the full history. Only main, never a pull request, and only after
+  # every other job of this run passed, so a failing commit is never tagged. Re-running the jobs of that commit's run
+  # retries a release that stopped (docs/decisions/2026-11-14-release-workflow.md).
   release:
     name: Release
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -178,6 +180,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # the history, to find the commit that raised ModuleVersion
           persist-credentials: false
 
       - name: Publish release

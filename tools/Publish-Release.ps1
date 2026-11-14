@@ -4,7 +4,9 @@ Publishes the GitHub Release of ModuleVersion of engine/GitHubOrg.psd1 when it h
 .DESCRIPTION
 The release is vX.Y.Z at the commit of the run: title vX.Y.Z, the notes of the section ## [X.Y.Z] of CHANGELOG.md,
 marked Latest, never a draft; gh release create also creates the tag when it is missing. A version that has its
-release already is left alone, so every push to main runs this and only the merge of a release pull request publishes.
+release already is left alone, so every push to main runs this and only the merge of a release pull request publishes:
+the release belongs to the commit that raised ModuleVersion (git log --first-parent, which needs the full history), and
+a run of any other commit leaves it to that commit's run, however the runs are ordered.
 
 The repository has immutable releases: a published release and its tag never change afterwards. So the script stops
 before any write when the changelog has no notes for the version, when the tag is at another commit, or when a draft
@@ -74,7 +76,22 @@ if ($release -and $release.isDraft) {
     throw "A draft release $tag exists; publish or delete it by hand, then run this again."
 }
 
+# The release belongs to the commit of main that raised ModuleVersion to the version: the merge of the release pull
+# request. Another run without a release (a later commit whose run finished first) leaves it to the run of that commit.
+$raisedAt = $null
 if (-not $release) {
+    $manifestDirectory = Split-Path -Path (Resolve-Path -Path $ManifestPath) -Parent
+    $pattern = "ModuleVersion[[:space:]]*=[[:space:]]*'$([regex]::Escape($version))'"
+    $raisedAt = @(& git -C $manifestDirectory log -1 --first-parent --diff-merges=first-parent --no-patch --format=%H "-G$pattern" -- (Split-Path -Path $ManifestPath -Leaf))[0]
+    if ($LASTEXITCODE -ne 0) {
+        throw "git log of $ManifestPath failed with exit code $LASTEXITCODE."
+    }
+    if (-not $raisedAt) {
+        throw "No commit of the first-parent history raised ModuleVersion to $version; the checkout needs the full history (fetch-depth: 0)."
+    }
+}
+
+if (-not $release -and $raisedAt -ceq $Commit) {
     # A tag without a release must be at this commit, peeled when it is annotated. matching-refs lists every tag the
     # name starts, so only the exact ref counts.
     $ref = @(Invoke-Gh api @header "repos/{owner}/{repo}/git/matching-refs/tags/$tag" | ConvertFrom-Json) |
@@ -92,6 +109,9 @@ if (-not $release) {
 
 $status = if ($release) {
     'released'
+}
+elseif ($raisedAt -cne $Commit) {
+    "waits for $raisedAt"
 }
 elseif ($PSCmdlet.ShouldProcess("$tag at $Commit", 'gh release create')) {
     Invoke-Gh release create $tag --target $Commit --title $tag --notes $notesText --latest | Out-Null

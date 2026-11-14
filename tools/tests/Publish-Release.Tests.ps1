@@ -62,6 +62,14 @@ Describe 'Publish-Release.ps1' {
             }
         }
         Mock Write-Host { }
+        # The commit of main that raised ModuleVersion to the version: git log --first-parent -G of the manifest.
+        $script:TestRaisedAt = @($script:commit)
+        $script:TestGitCalls = [System.Collections.Generic.List[string[]]]::new()
+        Mock git {
+            $TestGitCalls.Add([string[]]$args)
+            $global:LASTEXITCODE = 0
+            if ($args -contains 'log') { $TestRaisedAt }
+        }
 
         function Get-TestRef {
             # A ref as 'git/matching-refs' returns it: a commit (lightweight tag) or a tag object (annotated tag).
@@ -163,9 +171,30 @@ Describe 'Publish-Release.ps1' {
         Get-Content -Raw -Path $script:summary | Should -Match '\| 1\.1\.0 \| v1\.1\.0 \| new \|'
     }
 
+    It 'publishes nothing on a later commit than the one that raised the version' {
+        # The run of the release merge has not published (yet): a later commit of main must not take its place.
+        $script:TestRaisedAt = @($script:other)
+
+        & $script:releaseScript @paths
+
+        Get-GhCall -Command 'release create' | Should -BeNullOrEmpty
+        Get-Content -Raw -Path $script:summary | Should -Match "\| 1\.1\.0 \| v1\.1\.0 \| waits for $script:other \|"
+        $log = @($TestGitCalls | Where-Object { $_ -contains 'log' })[0]
+        $log | Should -Contain '--first-parent'
+        $log | Should -Contain "-GModuleVersion[[:space:]]*=[[:space:]]*'1\.1\.0'"
+    }
+
+    It 'stops when no commit of main raised ModuleVersion to the version' {
+        $script:TestRaisedAt = @()
+
+        { & $script:releaseScript @paths } | Should -Throw '*No commit of the first-parent history*1.1.0*'
+        Get-GhCall -Command 'release create' | Should -BeNullOrEmpty
+    }
+
     It 'takes the commit of the run from GITHUB_SHA' {
         $saved = $env:GITHUB_SHA
         $env:GITHUB_SHA = $script:other
+        $script:TestRaisedAt = @($script:other)
         try {
             $paths.Remove('Commit')
             & $script:releaseScript @paths
