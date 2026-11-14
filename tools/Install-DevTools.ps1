@@ -146,8 +146,9 @@ if (-not $ModulesOnly) {
         $executable = if ($filePlatform -like 'windows-*') { "$name.exe" } else { $name }
         $stamp = "$($tool.Version) $($asset.Sha256)"
         $stampPath = Join-Path -Path $ToolsPath -ChildPath "$name.pinned"
-        $installed = (Test-Path -LiteralPath (Join-Path -Path $ToolsPath -ChildPath $executable)) -and
-            (Test-Path -LiteralPath $stampPath) -and ((Get-Content -Raw -LiteralPath $stampPath) -join '').Trim() -ceq $stamp
+        # An empty stamp reads as $null: -join makes it ''.
+        $found = if (Test-Path -LiteralPath $stampPath) { ((Get-Content -Raw -LiteralPath $stampPath) -join '').Trim() } else { '' }
+        $installed = (Test-Path -LiteralPath (Join-Path -Path $ToolsPath -ChildPath $executable)) -and $found -ceq $stamp
         if ($installed) {
             Write-Host "$name $($tool.Version) is installed"
             continue

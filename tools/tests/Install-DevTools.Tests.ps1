@@ -161,7 +161,7 @@ Describe 'Install-DevTools.ps1' {
         Mock Write-Host { }
         Mock Write-Warning { }
 
-        function Set-TestInstalled {
+        function Write-TestInstalled {
             # .tools/bin as an earlier install left it: the executable and its stamp.
             param([string]$Stamp, [string]$Executable = 'sample', [string]$Content = 'installed earlier')
 
@@ -172,7 +172,7 @@ Describe 'Install-DevTools.ps1' {
     }
 
     It 'installs nothing when every tool, module and the hook are in place' {
-        Set-TestInstalled -Stamp "1.0.0 $($script:hash['sample_1.0.0_linux_amd64.tar.gz'])"
+        Write-TestInstalled -Stamp "1.0.0 $($script:hash['sample_1.0.0_linux_amd64.tar.gz'])"
 
         & $script:installScript @paths
 
@@ -197,7 +197,7 @@ Describe 'Install-DevTools.ps1' {
     }
 
     It 'installs again when the stamp is of another pin' {
-        Set-TestInstalled -Stamp "0.9.0 $('d' * 64)"
+        Write-TestInstalled -Stamp "0.9.0 $('d' * 64)"
 
         & $script:installScript @paths
 
@@ -206,7 +206,7 @@ Describe 'Install-DevTools.ps1' {
 
     It 'stops on a file whose SHA-256 differs from the pin, and keeps the installed tool' {
         # A download cut short, an error page saved as the file, or a release file replaced on GitHub.
-        Set-TestInstalled -Stamp "0.9.0 $('d' * 64)"
+        Write-TestInstalled -Stamp "0.9.0 $('d' * 64)"
         $script:TestTools.sample.Assets['linux-x64'] = @{ Name = 'sample_1.0.0_linux_amd64.tar.gz'; Sha256 = 'e' * 64 }
 
         { & $script:installScript @paths } | Should -Throw "*sample_1.0.0_linux_amd64.tar.gz*$('e' * 64)*"
@@ -238,7 +238,7 @@ Describe 'Install-DevTools.ps1' {
     }
 
     It 'installs again over an empty stamp an interrupted install left' {
-        Set-TestInstalled -Stamp ''
+        Write-TestInstalled -Stamp ''
         Set-Content -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample.pinned') -Value '' -NoNewline
 
         & $script:installScript @paths
