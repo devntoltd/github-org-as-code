@@ -44,7 +44,8 @@ Describe 'build.psd1' {
         $text | Should -Not -Match '(?m)^(env|defaults):'
         $text | Should -Not -Match '(?m)^\s+(- )?run:'
         $text | Should -Not -Match '(?m)^\s+(env|defaults|container|services):'
-        $text | Should -Not -Match '(?ms)^permissions:\s*\r?\n\s+\S+:\s*write'
+        # No workflow-level permission at all: every form of a write (a later entry of a block, write-all) is then out.
+        @([regex]::Matches($text, '(?m)^permissions:.*$')).Value | Should -Be @('permissions: {}')
         $jobs = $text.Substring($text.IndexOf("`njobs:"))
         @([regex]::Matches($jobs, '(?m)^  [a-z][\w-]*:\s*$')).Count | Should -Be 1 -Because 'one job'
         $uses.Count | Should -BeGreaterThan 0
