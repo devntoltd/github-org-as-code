@@ -57,7 +57,7 @@ jobs:
           curl -fsSL --retry 10 --retry-delay 30 --retry-max-time 300 -o "$archive" "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
           echo "${SHA256}  ${archive}" | sha256sum --check --strict
           tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -color -shellcheck="$RUNNER_TEMP/shellcheck" .github/workflows/ci.yml .github/workflows/recurring.yml .github/workflows/scorecard.yml engine/examples/org-checks.yml
+          "$RUNNER_TEMP/actionlint" -color -shellcheck="$RUNNER_TEMP/shellcheck" .github/workflows/ci.yml .github/workflows/codeql.yml .github/workflows/recurring.yml .github/workflows/scorecard.yml engine/examples/org-checks.yml
 
       # Security: template injection, dangerous triggers, unpinned actions, impostor commits. Online audits use
       # the job's read-only token. The action runs the zizmor image pinned by digest for the given version.
