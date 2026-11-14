@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: Engine version
-      description: The first line of every run, such as `github-org-bootstrap 1.0.0`.
+      description: The first line of every run, such as `github-org-bootstrap 1.0.1`.
     validations:
       required: true
   - type: input

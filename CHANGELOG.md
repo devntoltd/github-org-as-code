@@ -8,10 +8,15 @@ release unchanged.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-14
+
 ### Changed
 
 - `engine/examples/run.ps1` stops when `.engine/` has local changes (an edited or added file), instead of running
-  them, or deleting them when the pin changed; remove `.engine/` to check out the pinned engine again.
+  them, or deleting them when the pin changed; remove `.engine/` to check out the pinned engine again. It also stops,
+  instead of deleting it, when `.engine/` is not a checkout of the engine and holds other files than `.git`. A config
+  repository gets this by copying the new `engine/examples/run.ps1` over its own: raising `Tag` and `Commit` alone
+  keeps the old wrapper.
 - `engine/bootstrap.ps1` without `-ConfigPath` stops with an error that names the parameter and
   `engine/examples/github.json`, instead of PowerShell's prompt for the value.
 - The `Manual:` line of a run says to rerun with `-WhatIf -ManualChecklist`, which holds however the engine was
@@ -29,5 +34,6 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/devntoltd/github-org-bootstrap/releases/tag/v1.0.0

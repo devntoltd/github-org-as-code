@@ -7,7 +7,8 @@ Runs the engine version pinned in engine.psd1 against github.json, both next to 
 .DESCRIPTION
 Copy this file and engine.psd1 into the repository that holds the organization's config. The engine is checked out at
 the pinned commit into .engine/ next to this script (git-ignore it) and reused while the pin is unchanged; the run
-stops when the pinned tag does not point at the pinned commit, and when .engine/ has local changes. The switches are those of engine/bootstrap.ps1.
+stops when the pinned tag does not point at the pinned commit, and when .engine/ has local changes. The switches are
+those of engine/bootstrap.ps1.
 
 .EXAMPLE
 ./run.ps1 -WhatIf
