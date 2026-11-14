@@ -53,7 +53,8 @@ function Install-DevToolFile {
     New-Item -ItemType Directory -Path (Join-Path -Path $work -ChildPath 'files') -Force | Out-Null
     try {
         $file = Join-Path -Path $work -ChildPath $Asset.Name
-        Invoke-WebRequest -Uri "https://github.com/$($Tool.Repository)/releases/download/$($Tool.Tag)/$($Asset.Name)" -OutFile $file
+        # Retried as CI retries the same downloads: GitHub release files answer 5xx at times. A 404 is not retried.
+        Invoke-WebRequest -Uri "https://github.com/$($Tool.Repository)/releases/download/$($Tool.Tag)/$($Asset.Name)" -OutFile $file -MaximumRetryCount 5 -RetryIntervalSec 10
         $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($hash -cne $Asset.Sha256) {
             throw "$($Asset.Name) of $Name $($Tool.Version) has the SHA-256 $hash, not the pinned $($Asset.Sha256); nothing was installed."
@@ -132,10 +133,13 @@ if (-not $ModulesOnly) {
     }
     # Windows on arm64 runs the x64 builds through emulation.
     $filePlatform = if ($Platform -eq 'windows-arm64') { 'windows-x64' } else { $Platform }
-    if ($filePlatform -notin $supported) {
-        throw "dev-tools.psd1 pins no release files for $Platform; the supported platforms are $($supported -join ', ')."
-    }
+    # Another platform gets no tools, but still the modules and the git settings: the secret scan of the hook works
+    # with any Betterleaks on PATH.
     $tools = $devTools.Tools
+    if ($filePlatform -notin $supported) {
+        Write-Warning "dev-tools.psd1 pins no release files for $Platform; the supported platforms are $($supported -join ', '). Install the tools of the checks at the versions of dev-tools.psd1 yourself."
+        $tools = @{}
+    }
     foreach ($name in $tools.Keys | Sort-Object) {
         $tool = $tools[$name]
         $asset = $tool.Assets[$filePlatform]
@@ -143,7 +147,7 @@ if (-not $ModulesOnly) {
         $stamp = "$($tool.Version) $($asset.Sha256)"
         $stampPath = Join-Path -Path $ToolsPath -ChildPath "$name.pinned"
         $installed = (Test-Path -LiteralPath (Join-Path -Path $ToolsPath -ChildPath $executable)) -and
-            (Test-Path -LiteralPath $stampPath) -and (Get-Content -Raw -LiteralPath $stampPath).Trim() -ceq $stamp
+            (Test-Path -LiteralPath $stampPath) -and ((Get-Content -Raw -LiteralPath $stampPath) -join '').Trim() -ceq $stamp
         if ($installed) {
             Write-Host "$name $($tool.Version) is installed"
             continue

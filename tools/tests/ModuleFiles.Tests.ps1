@@ -36,7 +36,7 @@ Describe 'dev-tools.psd1' {
             @($tool.Assets.Keys | Sort-Object) | Should -Be $platforms -Because $name
             foreach ($platform in $platforms) {
                 $tool.Assets[$platform].Name | Should -Match '\.(zip|tar\.gz)$' -Because "$name $platform"
-                $tool.Assets[$platform].Sha256 | Should -Match '^[0-9a-f]{64}$' -Because "$name $platform"
+                $tool.Assets[$platform].Sha256 | Should -MatchExactly '^[0-9a-f]{64}$' -Because "$name $platform"
             }
         }
     }

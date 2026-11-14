@@ -225,9 +225,31 @@ Describe 'Install-DevTools.ps1' {
         Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample.exe') | Should -Be 'sample 1.0.0 for windows'
     }
 
-    It 'stops on a platform without pinned files, naming the supported ones' {
-        { & $script:installScript -ToolsPath $script:toolsPath -Platform 'freebsd-x64' } | Should -Throw '*freebsd-x64*linux-arm64, linux-x64, macos-arm64, macos-x64, windows-x64*'
+    It 'skips the tools on a platform without pinned files, naming the supported ones, and still sets up the rest' {
+        Mock git { $global:LASTEXITCODE = 1 } -ParameterFilter { $args -contains '--get' }
+
+        & $script:installScript -ToolsPath $script:toolsPath -Platform 'freebsd-x64'
+
         Should -Invoke Invoke-WebRequest -Times 0
+        Should -Invoke Write-Warning -Times 1 -Exactly -ParameterFilter { $Message -like '*freebsd-x64*linux-arm64, linux-x64, macos-arm64, macos-x64, windows-x64*' }
+        # The secret scan of the hook and the modules do not depend on the tools of the checks.
+        Should -Invoke git -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -like '* config --local core.hooksPath .githooks' }
+        Should -Invoke Find-PSResource -Times 3 -Exactly
+    }
+
+    It 'installs again over an empty stamp an interrupted install left' {
+        Set-TestInstalled -Stamp ''
+        Set-Content -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample.pinned') -Value '' -NoNewline
+
+        & $script:installScript @paths
+
+        Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample') | Should -Be 'sample 1.0.0 for linux'
+    }
+
+    It 'retries a download, as CI does: GitHub release files answer 5xx at times' {
+        & $script:installScript @paths
+
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter { $MaximumRetryCount -ge 3 -and $RetryIntervalSec -ge 5 }
     }
 
     It 'takes the file of the platform it runs on' {

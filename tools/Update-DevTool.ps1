@@ -36,6 +36,8 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path -Path $PSScriptRoot -ChildPath 'GitHubIssue.ps1')
 
 $header = @('--header', "X-GitHub-Api-Version: $(Get-PinnedGitHubApiVersion -Path $ModulePath)")
+# The full path: the .NET write below resolves a relative one against the process, not the PowerShell location.
+$Path = (Resolve-Path -LiteralPath $Path).ProviderPath
 $tools = (Import-PowerShellDataFile -Path $Path).Tools
 
 function Get-ReleaseFile {
@@ -123,8 +125,24 @@ for ($i = $start + 1; $i -lt $lines.Count -and $lines[$i] -notmatch "^$([regex]:
     $lines[$i] = $line
 }
 
+# The new text read back as data, before it is written: a line not in the form rewritten above (an entry over several
+# lines, a comment after a value) would otherwise leave a half-raised tool.
+$newText = $lines -join "`n"
+$hashtable = [System.Management.Automation.Language.Parser]::ParseInput($newText, [ref]$null, [ref]$null).Find({ $args[0] -is [System.Management.Automation.Language.HashtableAst] }, $false)
+$written = $hashtable.SafeGetValue().Tools[$Name]
+$unchanged = @(
+    if ($written.Version -cne $Version) { 'Version' }
+    if ($written.Tag -cne $tag) { 'Tag' }
+    foreach ($platform in $assets.Keys) {
+        if ($written.Assets[$platform].Name -cne $assets[$platform].Name -or $written.Assets[$platform].Sha256 -cne $assets[$platform].Sha256) { $platform }
+    }
+)
+if ($unchanged.Count -gt 0) {
+    throw "$Path has lines of $Name in another form than '<key> = ''<value>''' or '''<platform>'' = @{ Name = ''...''; Sha256 = ''...'' }' on one line: $($unchanged -join ', '). Nothing was written."
+}
+
 if ($PSCmdlet.ShouldProcess("$Name $old -> $Version in $Path", 'Update the pinned release files')) {
     # UTF-8 without BOM, the line endings the file had.
-    [System.IO.File]::WriteAllText($Path, ($lines -join "`n"), [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText($Path, $newText, [System.Text.UTF8Encoding]::new($false))
     Write-Host "$Name $old -> $Version ($tag): $(($assets.Keys | ForEach-Object { "$_ $($assets[$_].Name)" }) -join ', ')"
 }

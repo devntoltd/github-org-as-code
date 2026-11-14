@@ -113,6 +113,28 @@ Describe 'Update-DevTool.ps1' {
         }
     }
 
+    It 'writes nothing when a line of the tool is not in the form it rewrites' {
+        # A platform entry over several lines: rewriting the others would leave a half-raised block.
+        $text = (Get-Content -Raw -Path $script:devTools) -replace "'windows-x64' = @\{ Name = 'sample-all.zip'; Sha256 = '$script:hashB' \}", "'windows-x64' = @{`n                    Name = 'sample-all.zip'; Sha256 = '$script:hashB'`n                }"
+        Set-Content -Path $script:devTools -Value $text -NoNewline
+
+        { & $script:updateScript @paths -Name 'sample' -Version '1.3.0' } | Should -Throw '*windows-x64*'
+
+        Get-Content -Raw -Path $script:devTools | Should -Be $text
+    }
+
+    It 'writes to the file it read when -Path is relative' {
+        Push-Location -Path (Split-Path -Path $script:devTools -Parent)
+        try {
+            & $script:updateScript -Path './dev-tools.psd1' -ModulePath $script:module -Name 'sample' -Version '1.3.0'
+        }
+        finally {
+            Pop-Location
+        }
+
+        (Import-PowerShellDataFile -Path $script:devTools).Tools.sample.Version | Should -Be '1.3.0'
+    }
+
     It 'with -WhatIf writes nothing' {
         $before = Get-Content -Raw -Path $script:devTools
 

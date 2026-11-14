@@ -16,14 +16,17 @@ setup.
   hash differs stops the install; nothing is taken from the GitHub API at install time, so a release file replaced
   on GitHub is caught, as in CI. winget is no longer used, on Windows either: one path for every platform.
 - **Platforms:** `windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`, chosen from the running
-  system. Windows on arm64 takes the x64 files, which it runs through emulation. Another platform stops with the list
-  of the supported ones.
+  system. Windows on arm64 takes the x64 files, which it runs through emulation. Another platform gets a warning with
+  the list of the supported ones and no tools, but still the modules and the git settings (the hook's secret scan
+  works with any Betterleaks on `PATH`). A download is retried on a server error, as CI retries it.
 - **Data:** per tool in `dev-tools.psd1`: `Version`, `Repository`, the release `Tag` and, per platform, the file
   `Name` and its `Sha256`. A test keeps the `linux-x64` hashes equal to the `SHA256` of the matching `ci.yml` steps,
   as it keeps the versions equal today. `WinGetId` goes.
 - **Where:** `.tools/bin/` in the repository (git-ignored), never a global location. The executable named after the
   command (`<command>` or `<command>.exe`) is taken from the archive wherever it sits in it. A tool counts as installed
-  when `.tools/bin/` holds it and it reports the pinned version; otherwise it is installed again.
+  when `.tools/bin/` holds it next to its stamp `<command>.pinned` with the pinned version and SHA-256; otherwise (no
+  stamp, an empty one, another pin) it is installed again. The stamp, not the tool's own `--version`, so that every
+  platform is tested the same way without real binaries; a binary replaced by hand in `.tools/bin/` is not noticed.
 - **`PATH`:** `build.ps1` puts `.tools/bin/` first on `PATH` for the checks it runs, so `./build.ps1 <check>` and
   the VS Code tasks use the pinned tools whatever else is installed; the pre-commit hook prefers
   `.tools/bin/betterleaks`. Running a tool by hand outside `build.ps1` needs `.tools/bin/` on `PATH`, which
