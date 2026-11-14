@@ -4,6 +4,9 @@
 # The oldest gh Invoke-GhApi works with: 'gh api --paginate --slurp' needs 2.48.0.
 $script:GhMinimumVersion = '2.48.0'
 
+# Where Linux gets a current gh: GitHub's package repository; a distribution's package can be older than the minimum.
+$script:GhLinuxInstallUrl = 'https://github.com/cli/cli/blob/trunk/docs/install_linux.md'
+
 # The GitHub CLI boundary: every gh call goes through Invoke-GhApi, which tests replace with a stub (shared/tests/GhStub.ps1).
 
 function Test-GhInstalled {
@@ -41,11 +44,10 @@ function Assert-GhVersion {
     Prints the installed, minimum and latest gh versions, and the pinned and latest GitHub REST API versions; throws if
     gh is missing or older than the minimum.
     .DESCRIPTION
-    A minimum, not an exact version: gh updates almost weekly, and the winget hash check, GitHub's signature and the
-    release attestations already guard the binary. Printed in the format of Import-RequiredModule, so the output of a
-    run shows what it ran with. gh's own update notice never shows: Invoke-GhApi captures its output. A gh older than
-    the minimum makes no API call. A newer REST API version is only reported: raising $script:GitHubApiVersion needs a
-    review (see CONTRIBUTING.md).
+    A minimum, not an exact version: gh updates almost weekly, and GitHub's signature and release attestations already
+    guard the binary. Printed in the format of Import-RequiredModule, so the output of a run shows what it ran with.
+    gh's own update notice never shows: Invoke-GhApi captures its output. A gh older than the minimum makes no API call.
+    A newer REST API version is only reported: raising $script:GitHubApiVersion needs a review (see CONTRIBUTING.md).
     .PARAMETER SkipLatestVersionCheck
     Do not look up the latest gh release and REST API version.
     #>
@@ -58,7 +60,7 @@ function Assert-GhVersion {
     $skipped = if ($SkipLatestVersionCheck) { 'skipped' } else { 'unknown' }
     if (-not (Test-GhInstalled)) {
         Write-Host ($script:VersionRowFormat -f 'gh', 'missing', 'minimum', $script:GhMinimumVersion, $skipped, '')
-        throw 'GitHub CLI (gh) is not installed. Install it with: winget install --id GitHub.cli -e, then sign in with: gh auth login'
+        throw "GitHub CLI (gh) is not installed. Install it: winget install --id GitHub.cli -e (Windows), brew install gh (macOS), or from GitHub's package repository (Linux: $script:GhLinuxInstallUrl); then sign in with: gh auth login"
     }
 
     $text = (@(& gh --version 2>&1) | ForEach-Object { [string]$_ }) -join "`n"
@@ -78,7 +80,7 @@ function Assert-GhVersion {
     $apiNote = if ($latestApi -and [string]::CompareOrdinal($latestApi, $script:GitHubApiVersion) -gt 0) { '  (new version available)' } else { '' }
     Write-Host ('  {0,-26} pinned {1,-28} latest {2}{3}' -f 'GitHub REST API', $script:GitHubApiVersion, ($latestApi ?? $skipped), $apiNote)
     if (-not $supported) {
-        throw "gh $installed is older than $script:GhMinimumVersion, the minimum this script needs. Update it with: winget upgrade --id GitHub.cli -e"
+        throw "gh $installed is older than $script:GhMinimumVersion, the minimum this script needs. Update it: winget upgrade --id GitHub.cli -e (Windows), brew upgrade gh (macOS), from GitHub's package repository (Linux: $script:GhLinuxInstallUrl; a distribution's own package can be older), or the way you installed it."
     }
 }
 
