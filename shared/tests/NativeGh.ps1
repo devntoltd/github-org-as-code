@@ -94,10 +94,13 @@ class FakeGh {
     $script:TestNativeGhPath = $env:PATH
     $env:PATH = $Directory + [System.IO.Path]::PathSeparator + $env:PATH
 
-    # A function wins over a program: a gh stub left by another test would quietly replace the fake.
-    $command = Get-Command -Name gh
-    if ($command.CommandType -ne 'Application' -or (Split-Path -Path $command.Source -Parent) -ne $Directory) {
-        throw "gh resolves to $($command.CommandType) '$($command.Source)', not the fake in $Directory; a test left a gh stub behind."
+    # A function wins over a program: a gh stub left by another test would quietly replace the fake. On Windows the fake
+    # must be the exe: a gh.cmd is an Application too, but would start a pwsh per call (about a second each; the smoke
+    # test of bootstrap.ps1 makes about 40 calls). Full paths compare, whatever form TEMP gives them.
+    $command = @(Get-Command -Name gh -All)[0]
+    $expected = [System.IO.Path]::GetFullPath((Join-Path -Path $Directory -ChildPath $(if ($IsWindows) { 'gh.exe' } else { 'gh' })))
+    if ($command.CommandType -ne 'Application' -or [System.IO.Path]::GetFullPath($command.Source) -ne $expected) {
+        throw "gh resolves to $($command.CommandType) '$($command.Source)', not the fake $expected; a test left a gh stub behind, or the fake is no longer the exe."
     }
 }
 

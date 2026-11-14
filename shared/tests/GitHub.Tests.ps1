@@ -363,15 +363,4 @@ Describe 'Invoke-GhApi with a native gh' {
         [int]$thrown.Exception.StatusCode | Should -Be 404
         @(Get-TestNativeGhCall -Directory $script:ghDirectory).Count | Should -Be 1
     }
-
-    # A smoke run of bootstrap.ps1 makes about 40 calls. A pwsh started per call took 0.8 to 1.2 s each on Windows, the
-    # exe about 0.2 s.
-    It 'answers a call in well under a second on Windows' -Skip:(-not $IsWindows) {
-        Set-TestNativeGhRoute -Directory $script:ghDirectory -Route @{}
-        gh --version | Out-Null
-
-        $elapsed = Measure-Command { 1..10 | ForEach-Object { gh --version | Out-Null } }
-
-        $elapsed.TotalSeconds | Should -BeLessThan 5
-    }
 }
