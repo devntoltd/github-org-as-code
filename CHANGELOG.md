@@ -8,7 +8,9 @@ release unchanged.
 
 ## [Unreleased]
 
-### Changed
+## [1.0.1] - 2026-11-14
+
+### Fixed
 
 - `engine/examples/run.ps1` stops when `.engine/` has local changes (an edited or added file), instead of running
   them, or deleting them when the pin changed; remove `.engine/` to check out the pinned engine again.
@@ -29,5 +31,6 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/devntoltd/github-org-bootstrap/releases/tag/v1.0.0
