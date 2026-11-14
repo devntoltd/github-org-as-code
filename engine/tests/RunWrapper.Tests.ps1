@@ -182,6 +182,23 @@ Describe 'engine/examples/run.ps1' {
         Get-TestCall | Should -Not -BeNullOrEmpty
     }
 
+    It 'warns when the engine fails, and the failure of the engine still stops the run' {
+        $script:state.Wrapper = "# The wrapper of a later release.`n"
+        $script:state.Stub = "throw 'the engine failed'"
+
+        $failure = $null
+        try {
+            & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+        }
+        catch {
+            $failure = $_
+        }
+
+        [string]$failure | Should -BeLike '*the engine failed*'
+        @($warnings).Count | Should -Be 1
+        [string]$warnings[0] | Should -BeLike 'run.ps1 differs from the wrapper of v1.0.0;*'
+    }
+
     It 'does not warn when the copy equals the wrapper of the pinned engine apart from <Case>' -ForEach @(
         @{ Case = 'LF in the pinned one'; Pinned = { param($t) $t } }
         @{ Case = 'CRLF in the pinned one'; Pinned = { param($t) $t -replace "`n", "`r`n" } }
