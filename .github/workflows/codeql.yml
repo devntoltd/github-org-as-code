@@ -1,0 +1,54 @@
+name: CodeQL
+
+# CodeQL analysis of the GitHub Actions workflows (language actions: injection through untrusted input, unpinned or
+# untrusted actions, excessive permissions and others), results to code scanning (Security -> Code scanning). CodeQL
+# has no PowerShell: PSScriptAnalyzer checks that code in ci.yml, and zizmor the workflows too. CodeQL reads only the
+# workflows under .github/workflows, not the example engine/examples/org-checks.yml, which actionlint and zizmor check.
+#
+# Scorecard's SAST check (#23) finds the analyze step (7/10) and counts the recent commits of merged pull requests whose
+# code scanning check run ended successful or neutral (the rest): so this runs on every pull request, with no paths
+# filter. The repository's code scanning default setup stays off: an advanced workflow and default setup do not run side
+# by side.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Monday 04:41 UTC: away from the start of the hour, when GitHub delays scheduled runs; new queries reach unchanged
+  # workflows too.
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+# One analysis per pull request: a new push cancels the previous one. A run of main has a group of its own commit, so a
+# newer commit never cancels it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: CodeQL (actions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # checkout
+      security-events: write # uploads the results to code scanning
+      actions: read # the run metadata of the analysis; needed only if the repository were private
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The workflows need no build: build-mode none.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: actions
+          build-mode: none
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:actions
