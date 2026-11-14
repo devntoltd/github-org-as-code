@@ -93,3 +93,14 @@ Describe 'Decision index' {
         $found | Should -BeNullOrEmpty
     }
 }
+
+Describe 'CHANGELOG.md' {
+    It 'links only to absolute URLs, since its sections are the notes of immutable releases' {
+        # A relative link or #anchor resolves under the release page there, a broken link that cannot be fixed.
+        $path = Join-Path -Path (Resolve-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath '../..')) -ChildPath 'CHANGELOG.md'
+        $found = @(Select-String -Path $path -Pattern '\]\((?!https?://)[^)]*\)', '^\[[^\]]+\]:(?>\s*)(?!https?://)' |
+                ForEach-Object { "line $($_.LineNumber): $($_.Line.Trim())" })
+
+        $found | Should -BeNullOrEmpty
+    }
+}

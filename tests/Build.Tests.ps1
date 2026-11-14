@@ -12,14 +12,27 @@ Describe 'build.psd1' {
     }
 
     It 'has a check for every step of ci.yml and a step for every check' {
-        # Steps that prepare the job instead of checking anything.
-        $setupSteps = @('Install modules')
+        # Steps that check nothing: the preparation of a job and the release of main (tools/Publish-Release.ps1).
+        $setupSteps = @('Install modules', 'Publish release')
         $ciSteps = @(Select-String -Path (Join-Path -Path $root -ChildPath '.github/workflows/ci.yml') -Pattern '^\s*- name:\s*(.+?)\s*$' |
                 ForEach-Object { $_.Matches[0].Groups[1].Value } |
                 Where-Object { $_ -notin $setupSteps })
 
         $ciSteps.Count | Should -BeGreaterThan 0
         @($checks.CiStep | Sort-Object) | Should -Be @($ciSteps | Sort-Object)
+    }
+
+    It 'publishes a release in ci.yml only after every other job passed' {
+        # An immutable release of a commit whose new job failed could not be taken back.
+        $lines = Get-Content -Path (Join-Path -Path $root -ChildPath '.github/workflows/ci.yml')
+        $jobLines = $lines[([array]::IndexOf($lines, 'jobs:') + 1)..($lines.Count - 1)]
+        $jobs = @($jobLines | Where-Object { $_ -match '^  ([a-z][\w-]*):\s*$' } | ForEach-Object { $Matches[1] })
+        $start = [array]::IndexOf($lines, '  release:')
+        $needs = @($lines[($start + 1)..($lines.Count - 1)] | Where-Object { $_ -match '^    needs:\s*\[(.+)\]' } | Select-Object -First 1 |
+                ForEach-Object { $Matches[1] -split ',' | ForEach-Object { $_.Trim() } })
+
+        $jobs | Should -Contain 'release'
+        @($needs | Sort-Object) | Should -Be @($jobs | Where-Object { $_ -ne 'release' } | Sort-Object)
     }
 
     It 'lints every workflow of .github/workflows and engine/examples/org-checks.yml with actionlint, in build.psd1 and ci.yml' {
