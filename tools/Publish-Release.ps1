@@ -90,15 +90,14 @@ if ($release -and $release.isDraft) {
 # request. A run of a later commit without a release leaves it to the run of that commit, however the runs are ordered.
 $raises = $false
 if (-not $release) {
-    $parentManifest = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "$([guid]::NewGuid()).psd1"
-    try {
-        # A temporary local file, read back below: written under -WhatIf too.
-        Invoke-Git -Arguments @('show', "$Commit^1:./$(Split-Path -Path $ManifestPath -Leaf)") | Set-Content -Path $parentManifest -WhatIf:$false
-        $raises = [string](Import-PowerShellDataFile -Path $parentManifest).ModuleVersion -ne $version
+    # The parent's manifest is read in memory, as Import-PowerShellDataFile reads a file: parsed, its hashtable taken as
+    # constants only (SafeGetValue runs no code). No temporary file, so -WhatIf and -Confirm leave nothing behind.
+    $parentText = (Invoke-Git -Arguments @('show', "$Commit^1:./$(Split-Path -Path $ManifestPath -Leaf)")) -join "`n"
+    $hashtable = [System.Management.Automation.Language.Parser]::ParseInput($parentText, [ref]$null, [ref]$null).Find({ $args[0] -is [System.Management.Automation.Language.HashtableAst] }, $false)
+    if (-not $hashtable) {
+        throw "The manifest of $Commit^1 holds no hashtable."
     }
-    finally {
-        Remove-Item -LiteralPath $parentManifest -ErrorAction Ignore
-    }
+    $raises = [string]$hashtable.SafeGetValue().ModuleVersion -ne $version
 }
 
 if ($raises) {
