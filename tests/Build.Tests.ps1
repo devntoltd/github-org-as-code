@@ -190,6 +190,21 @@ param([string]$Value = 'default')
     }
 
     Context 'checks' {
+        It 'runs the checks with .tools/bin first on PATH, and leaves the PATH of the session as it was' {
+            # The tools Install-DevTools.ps1 put there win over other installed versions. A copy of its own, with one
+            # check that logs the first entry of the PATH it sees after $PSHOME, which a starting pwsh puts first.
+            $own = (New-Item -ItemType Directory -Path (Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid()))).FullName
+            Copy-Item -Path $buildScript -Destination $own
+            Set-Content -Path (Join-Path -Path $own -ChildPath 'path.ps1') -Value "Set-Content -Path 'path.log' -Value @(`$env:PATH -split [System.IO.Path]::PathSeparator | Where-Object { `$_ -ne `$PSHOME })[0]"
+            Set-Content -Path (Join-Path -Path $own -ChildPath 'build.psd1') -Value "@{ Checks = @(@{ Name = 'path'; Description = 'Shows PATH'; Command = 'pwsh'; Arguments = @('-NoProfile', '-File', 'path.ps1'); CiStep = 'Path' }); Tools = @() }"
+            $before = $env:PATH
+
+            & (Join-Path -Path $own -ChildPath 'build.ps1') path
+
+            Get-Content -Path (Join-Path -Path $own -ChildPath 'path.log') | Should -Be ([System.IO.Path]::GetFullPath((Join-Path -Path $own -ChildPath '.tools/bin')))
+            $env:PATH | Should -Be $before
+        }
+
         It 'runs every check with all, keeps going after a failure and exits with 1' {
             Mock gh { 'test-token' }
 

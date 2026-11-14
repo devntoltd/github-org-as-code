@@ -4,3 +4,5 @@ coverage.xml
 .engine/
 # Personal Claude Code settings; the shared ones are in .claude/settings.json.
 .claude/settings.local.json
+# The pinned check tools of tools/Install-DevTools.ps1.
+.tools/

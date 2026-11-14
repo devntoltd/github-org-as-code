@@ -3,6 +3,13 @@
 # Enabled per clone by tools/Install-DevTools.ps1 (git config --local core.hooksPath .githooks).
 # A false positive: add a betterleaks:allow comment on the line, or its fingerprint to .betterleaksignore.
 
+# The pinned Betterleaks of tools/Install-DevTools.ps1 first. git runs the hook from the root of the working tree, and
+# $PWD is a POSIX path there also in git-bash, where the C: of git rev-parse would split PATH.
+if [ -d "$PWD/.tools/bin" ]; then
+  PATH="$PWD/.tools/bin:$PATH"
+  export PATH
+fi
+
 if ! command -v betterleaks >/dev/null 2>&1; then
   echo "pre-commit: betterleaks not found; run ./tools/Install-DevTools.ps1 (CONTRIBUTING.md > Setup); to skip the scan for one commit:" >&2
   echo "  git commit --no-verify" >&2
