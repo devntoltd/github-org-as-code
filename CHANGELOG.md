@@ -12,10 +12,11 @@ release unchanged.
 
 ### Added
 
-- `engine/examples/run.ps1` warns, as the last line of a run, when it differs from the wrapper of the engine it pins,
-  with the file to copy over it: raising `Tag` and `Commit` never updates the copy in a config repository. Line
-  endings, newlines at the end and a signature block do not count, and the run goes on either way. Copy this
-  release's `run.ps1` once to get the warning; later wrappers then announce themselves.
+- `engine/examples/run.ps1` warns, after the engine's output (also when the engine fails), when it differs from the
+  wrapper of the engine it pins, with the file to copy over it: raising `Tag` and `Commit` never updates the copy in a
+  config repository. Line endings, newlines at the end and a signature block do not count, and the run goes on either
+  way. Copy this release's `run.ps1` once, in the same change that raises `Tag` and `Commit` to `v1.1.0`: with an
+  older pin, the new copy would be told to make way for the older wrapper. Later wrappers then announce themselves.
 
 ## [1.0.1] - 2026-11-14
 
