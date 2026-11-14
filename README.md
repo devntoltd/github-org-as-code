@@ -82,7 +82,8 @@ Keep `github.json` in a private repository of your organization and run a pinned
 `configVersion` in the config names its format (`major.minor`). An engine reads its own major version up to its own
 minor and stops before any GitHub call otherwise. The [changelog](CHANGELOG.md) lists every format change with the
 edit it needs. Upgrade in one pull request of your config repository: raise `Tag` and `Commit`, edit `github.json` as
-the changelog says, run `./run.ps1 -WhatIf` and put the plan in the pull request. A plan that changes anything is a
+the changelog says (it also says when to copy a new `engine/examples/run.ps1` over yours: the pin does not update
+your copy), run `./run.ps1 -WhatIf` and put the plan in the pull request. A plan that changes anything is a
 change to your organization and is reviewed as one.
 
 ## Contributing and security
