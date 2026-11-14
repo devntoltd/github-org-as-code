@@ -3,9 +3,6 @@ BeforeAll {
     $script:installScript = Join-Path -Path $script:root -ChildPath 'tools/Install-DevTools.ps1'
 
     # Stand-ins for the native commands, so Pester can mock them on a machine without them.
-    function actionlint { }
-    function zizmor { }
-    function winget { }
     function git { }
 }
 
@@ -105,19 +102,47 @@ Describe 'dev-tools.psd1' {
 }
 
 Describe 'Install-DevTools.ps1' {
+    BeforeAll {
+        # Release files as the upstream publishes them: a .tar.gz with the executable in a folder, a .zip with the .exe.
+        $script:archives = Join-Path -Path $TestDrive -ChildPath 'archives'
+        $content = Join-Path -Path $TestDrive -ChildPath 'content'
+        New-Item -ItemType Directory -Path $script:archives, (Join-Path -Path $content -ChildPath 'sample-1.0.0') -Force | Out-Null
+        Set-Content -Path (Join-Path -Path $content -ChildPath 'sample-1.0.0/sample') -Value 'sample 1.0.0 for linux' -NoNewline
+        Set-Content -Path (Join-Path -Path $content -ChildPath 'sample.exe') -Value 'sample 1.0.0 for windows' -NoNewline
+        # Relative paths, as the script uses them: GNU tar reads C:\... as host:path.
+        Push-Location -LiteralPath $content
+        try {
+            & tar -czf '../archives/sample_1.0.0_linux_amd64.tar.gz' 'sample-1.0.0'
+            if ($LASTEXITCODE -ne 0) { throw "tar failed with exit code $LASTEXITCODE." }
+        }
+        finally {
+            Pop-Location
+        }
+        Compress-Archive -Path (Join-Path -Path $content -ChildPath 'sample.exe') -DestinationPath (Join-Path -Path $script:archives -ChildPath 'sample_1.0.0_windows_amd64.zip')
+        $script:hash = @{}
+        foreach ($file in Get-ChildItem -Path $script:archives) {
+            $script:hash[$file.Name] = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    }
+
     BeforeEach {
+        $script:toolsPath = Join-Path -Path $TestDrive -ChildPath "bin-$([guid]::NewGuid())"
+        $linux = @{ Name = 'sample_1.0.0_linux_amd64.tar.gz'; Sha256 = $script:hash['sample_1.0.0_linux_amd64.tar.gz'] }
+        $windows = @{ Name = 'sample_1.0.0_windows_amd64.zip'; Sha256 = $script:hash['sample_1.0.0_windows_amd64.zip'] }
+        $script:TestTools = @{
+            sample = @{
+                Version    = '1.0.0'
+                Repository = 'example/sample'
+                Tag        = 'v1.0.0'
+                Assets     = @{ 'linux-arm64' = $linux; 'linux-x64' = $linux; 'macos-arm64' = $linux; 'macos-x64' = $linux; 'windows-x64' = $windows }
+            }
+        }
+        $script:paths = @{ ToolsPath = $script:toolsPath; Platform = 'linux-x64' }
+
         # Before the Get-Module mock: Pester resolves the mocked command through Get-Module.
         Mock Install-PSResource { }
         Mock Find-PSResource { [pscustomobject]@{ Name = $Name; Version = $Version; Dependencies = @() } }
-        Mock Import-PowerShellDataFile -ParameterFilter { $Path -like '*dev-tools.psd1' } {
-            @{
-                Modules = @{ Pester = '6.2.0' }
-                Tools   = @{
-                    actionlint = @{ WinGetId = 'rhysd.actionlint'; Version = '1.7.12'; Repository = 'rhysd/actionlint' }
-                    zizmor     = @{ WinGetId = 'zizmor.zizmor'; Version = '1.30.1'; Repository = 'zizmorcore/zizmor' }
-                }
-            }
-        }
+        Mock Import-PowerShellDataFile -ParameterFilter { $Path -like '*dev-tools.psd1' } { @{ Modules = @{ Pester = '6.2.0' }; Tools = $TestTools } }
         Mock Import-PowerShellDataFile -ParameterFilter { $Path -like '*modules.lock.psd1' } { @{ 'Example.Base' = '5.5.3'; 'Example.Tool' = '10.2.1' } }
         Mock Get-Module -ParameterFilter { $ListAvailable } {
             @{
@@ -126,9 +151,8 @@ Describe 'Install-DevTools.ps1' {
                 'Example.Tool' = [pscustomobject]@{ Version = [version]'10.2.1' }
             }[$Name]
         }
-        Mock actionlint { '1.7.12'; 'installed by downloading from release page' }
-        Mock zizmor { 'zizmor 1.30.1' }
-        Mock winget { $global:LASTEXITCODE = 0 }
+        # The download copies the release file of that name.
+        Mock Invoke-WebRequest { Copy-Item -LiteralPath (Join-Path -Path $archives -ChildPath ($Uri -split '/')[-1]) -Destination $OutFile }
         Mock git {
             $global:LASTEXITCODE = 0
             if ($args -contains 'core.hooksPath' -and $args -contains '--get') { '.githooks' }
@@ -136,62 +160,81 @@ Describe 'Install-DevTools.ps1' {
         }
         Mock Write-Host { }
         Mock Write-Warning { }
+
+        function Set-TestInstalled {
+            # .tools/bin as an earlier install left it: the executable and its stamp.
+            param([string]$Stamp, [string]$Executable = 'sample', [string]$Content = 'installed earlier')
+
+            New-Item -ItemType Directory -Path $script:toolsPath -Force | Out-Null
+            Set-Content -Path (Join-Path -Path $script:toolsPath -ChildPath $Executable) -Value $Content -NoNewline
+            Set-Content -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample.pinned') -Value $Stamp
+        }
     }
 
     It 'installs nothing when every tool, module and the hook are in place' {
-        & $script:installScript
+        Set-TestInstalled -Stamp "1.0.0 $($script:hash['sample_1.0.0_linux_amd64.tar.gz'])"
 
-        Should -Invoke winget -Times 0
+        & $script:installScript @paths
+
+        Should -Invoke Invoke-WebRequest -Times 0
         Should -Invoke Install-PSResource -Times 0
         Should -Invoke git -Times 0 -ParameterFilter { $args -notcontains '--get' }
     }
 
-    It 'installs a missing tool at the pinned version through winget' {
-        Mock zizmor { }
+    It 'installs a missing tool from its pinned release file, wherever the archive keeps the executable' {
+        & $script:installScript @paths
 
-        & $script:installScript
-
-        Should -Invoke winget -Times 1 -Exactly -ParameterFilter {
-            ($args -join ' ') -like 'install --exact --id zizmor.zizmor --version 1.30.1 *'
-        }
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://github.com/example/sample/releases/download/v1.0.0/sample_1.0.0_linux_amd64.tar.gz' }
+        Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample') | Should -Be 'sample 1.0.0 for linux'
+        (Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample.pinned')).Trim() | Should -Be "1.0.0 $($script:hash['sample_1.0.0_linux_amd64.tar.gz'])"
     }
 
-    It 'installs the pinned version when another version is installed' {
-        Mock actionlint { '1.7.11' }
+    It 'makes the installed tool executable on Linux and macOS' -Skip:$IsWindows {
+        & $script:installScript @paths
 
-        & $script:installScript
-
-        Should -Invoke winget -Times 1 -Exactly -ParameterFilter {
-            ($args -join ' ') -like 'install --exact --id rhysd.actionlint --version 1.7.12 *'
-        }
+        $mode = [System.IO.File]::GetUnixFileMode((Join-Path -Path $script:toolsPath -ChildPath 'sample'))
+        $mode.HasFlag([System.IO.UnixFileMode]::UserExecute) | Should -BeTrue
     }
 
-    It 'throws when winget fails' {
-        Mock actionlint { '1.7.11' }
-        Mock winget { $global:LASTEXITCODE = 1 }
+    It 'installs again when the stamp is of another pin' {
+        Set-TestInstalled -Stamp "0.9.0 $('d' * 64)"
 
-        { & $script:installScript } | Should -Throw '*winget*rhysd.actionlint*'
+        & $script:installScript @paths
+
+        Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample') | Should -Be 'sample 1.0.0 for linux'
     }
 
-    It 'warns to open a new terminal when winget has the tool but this session does not find it' {
-        Mock zizmor { }
-        # APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE: installed at that version, PATH of this session not updated yet.
-        Mock winget { $global:LASTEXITCODE = -1978335189 }
+    It 'stops on a file whose SHA-256 differs from the pin, and keeps the installed tool' {
+        # A download cut short, an error page saved as the file, or a release file replaced on GitHub.
+        Set-TestInstalled -Stamp "0.9.0 $('d' * 64)"
+        $script:TestTools.sample.Assets['linux-x64'] = @{ Name = 'sample_1.0.0_linux_amd64.tar.gz'; Sha256 = 'e' * 64 }
 
-        { & $script:installScript } | Should -Not -Throw
-        Should -Invoke Write-Warning -Times 1 -Exactly -ParameterFilter { $Message -like '*zizmor 1.30.1 is installed*open a new terminal*' }
+        { & $script:installScript @paths } | Should -Throw "*sample_1.0.0_linux_amd64.tar.gz*$('e' * 64)*"
+
+        Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample') | Should -Be 'installed earlier'
     }
 
-    It 'warns instead of installing when winget is not available' {
-        Mock actionlint { '1.7.11' }
-        $getCommand = Get-Command -Name Get-Command -CommandType Cmdlet
-        Mock Get-Command { & $getCommand @PesterBoundParameters }
-        Mock Get-Command -ParameterFilter { $Name -eq 'winget' } { $null }
+    It 'installs the .exe on <Platform>' -ForEach @(
+        @{ Platform = 'windows-x64' }
+        # Windows on arm64 runs the x64 build through emulation.
+        @{ Platform = 'windows-arm64' }
+    ) {
+        & $script:installScript -ToolsPath $script:toolsPath -Platform $Platform
 
-        & $script:installScript
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter { $Uri -like '*/sample_1.0.0_windows_amd64.zip' }
+        Get-Content -Raw -Path (Join-Path -Path $script:toolsPath -ChildPath 'sample.exe') | Should -Be 'sample 1.0.0 for windows'
+    }
 
-        Should -Invoke winget -Times 0
-        Should -Invoke Write-Warning -Times 1 -Exactly -ParameterFilter { $Message -like '*actionlint 1.7.12*' }
+    It 'stops on a platform without pinned files, naming the supported ones' {
+        { & $script:installScript -ToolsPath $script:toolsPath -Platform 'freebsd-x64' } | Should -Throw '*freebsd-x64*linux-arm64, linux-x64, macos-arm64, macos-x64, windows-x64*'
+        Should -Invoke Invoke-WebRequest -Times 0
+    }
+
+    It 'takes the file of the platform it runs on' {
+        & $script:installScript -ToolsPath $script:toolsPath
+
+        $expected = if ($IsWindows) { '*.zip' } else { '*.tar.gz' }
+        Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter { $Uri -like $expected }
     }
 
     It 'installs exactly the locked version, without dependencies, when only another one is installed' {
@@ -203,7 +246,7 @@ Describe 'Install-DevTools.ps1' {
             }[$Name]
         }
 
-        & $script:installScript
+        & $script:installScript @paths
 
         Should -Invoke Install-PSResource -Times 1 -Exactly
         Should -Invoke Install-PSResource -Times 1 -Exactly -ParameterFilter {
@@ -218,7 +261,7 @@ Describe 'Install-DevTools.ps1' {
             [pscustomobject]@{ Name = 'Example.Tool'; Version = '10.2.1'; Dependencies = @([pscustomobject]@{ Name = 'Example.Other'; VersionRange = '[1.0.0, )' }) }
         }
 
-        { & $script:installScript } | Should -Throw '*Example.Tool 10.2.1 needs Example.Other `[1.0.0, ), which is not in modules.lock.psd1*'
+        { & $script:installScript @paths } | Should -Throw '*Example.Tool 10.2.1 needs Example.Other `[1.0.0, ), which is not in modules.lock.psd1*'
         Should -Invoke Install-PSResource -Times 0
     }
 
@@ -227,7 +270,7 @@ Describe 'Install-DevTools.ps1' {
             [pscustomobject]@{ Name = 'Example.Tool'; Version = '10.2.1'; Dependencies = @([pscustomobject]@{ Name = 'Example.Base'; VersionRange = '[5.6.0, )' }) }
         }
 
-        { & $script:installScript } | Should -Throw '*Example.Tool 10.2.1 needs Example.Base `[5.6.0, ); modules.lock.psd1 locks 5.5.3*'
+        { & $script:installScript @paths } | Should -Throw '*Example.Tool 10.2.1 needs Example.Base `[5.6.0, ); modules.lock.psd1 locks 5.5.3*'
     }
 
     It 'reads the version range <Range> of the Gallery' -ForEach @(
@@ -243,20 +286,19 @@ Describe 'Install-DevTools.ps1' {
         }
 
         if ($Ok) {
-            { & $script:installScript } | Should -Not -Throw
+            { & $script:installScript @paths } | Should -Not -Throw
         }
         else {
-            { & $script:installScript } | Should -Throw '*locks 5.5.3*'
+            { & $script:installScript @paths } | Should -Throw '*locks 5.5.3*'
         }
     }
 
     It 'installs only the modules with -ModulesOnly' {
-        Mock zizmor { }
         Mock git { $global:LASTEXITCODE = 1 } -ParameterFilter { $args -contains '--get' }
 
-        & $script:installScript -ModulesOnly
+        & $script:installScript @paths -ModulesOnly
 
-        Should -Invoke winget -Times 0
+        Should -Invoke Invoke-WebRequest -Times 0
         Should -Invoke git -Times 0
         Should -Invoke Find-PSResource -Times 3 -Exactly
     }
@@ -264,7 +306,7 @@ Describe 'Install-DevTools.ps1' {
     It 'enables the pre-commit hook for this clone only' {
         Mock git { $global:LASTEXITCODE = 1 } -ParameterFilter { $args -contains '--get' }
 
-        & $script:installScript
+        & $script:installScript @paths
 
         Should -Invoke git -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -like '* config --local core.hooksPath .githooks' }
     }
@@ -272,20 +314,19 @@ Describe 'Install-DevTools.ps1' {
     It 'makes git blame skip the formatting commits for this clone only' {
         Mock git { $global:LASTEXITCODE = 1 } -ParameterFilter { $args -contains 'blame.ignoreRevsFile' -and $args -contains '--get' }
 
-        & $script:installScript
+        & $script:installScript @paths
 
         Should -Invoke git -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -like '* config --local blame.ignoreRevsFile .git-blame-ignore-revs' }
         Should -Invoke git -Times 0 -ParameterFilter { ($args -join ' ') -like '* config --local core.hooksPath .githooks' }
     }
 
     It 'changes nothing with -WhatIf' {
-        Mock actionlint { '1.7.11' }
         Mock Get-Module -ParameterFilter { $ListAvailable } { $null }
         Mock git { $global:LASTEXITCODE = 1 } -ParameterFilter { $args -contains '--get' }
 
-        & $script:installScript -WhatIf
+        & $script:installScript @paths -WhatIf
 
-        Should -Invoke winget -Times 0
+        Should -Invoke Invoke-WebRequest -Times 0
         Should -Invoke Install-PSResource -Times 0
         Should -Invoke git -Times 0 -ParameterFilter { $args -notcontains '--get' }
     }
