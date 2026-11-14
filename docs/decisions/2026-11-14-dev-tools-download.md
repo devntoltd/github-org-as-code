@@ -1,7 +1,7 @@
 # Developer tools from pinned release files
 
 Date: 2026-11-14
-Status: approved
+Status: implemented
 
 `tools/Install-DevTools.ps1` installed the command-line tools of the checks (actionlint, Betterleaks,
 editorconfig-checker, lychee, shellcheck, zizmor) through winget only: on Linux and macOS it listed what to install,
