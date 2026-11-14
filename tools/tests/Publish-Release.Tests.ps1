@@ -218,12 +218,23 @@ Describe 'Publish-Release.ps1' {
         $TestGhCalls | Should -BeNullOrEmpty
     }
 
-    It 'with -WhatIf reads but publishes nothing' {
-        & $script:releaseScript @paths -WhatIf
+    It 'with -WhatIf reads but publishes nothing and leaves no manifest copy behind' {
+        # The temporary folder of .NET (TMP and TEMP on Windows, TMPDIR elsewhere) is an empty one of this test; only a
+        # .psd1 counts, since the host may put files of its own there.
+        $temp = (New-Item -ItemType Directory -Path (Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid()))).FullName
+        $saved = @{ TMP = $env:TMP; TEMP = $env:TEMP; TMPDIR = $env:TMPDIR }
+        try {
+            $env:TMP = $temp; $env:TEMP = $temp; $env:TMPDIR = $temp
+            & $script:releaseScript @paths -WhatIf
+        }
+        finally {
+            $env:TMP = $saved.TMP; $env:TEMP = $saved.TEMP; $env:TMPDIR = $saved.TMPDIR
+        }
 
         Get-GhCall -Command 'release list' | Should -Not -BeNullOrEmpty
         Get-GhCall -Command 'release create' | Should -BeNullOrEmpty
         Get-Content -Raw -Path $script:summary | Should -Match '\| 1\.1\.0 \| v1\.1\.0 \| new \|'
+        Get-ChildItem -LiteralPath $temp -Filter '*.psd1' -Recurse -Force | Should -BeNullOrEmpty
     }
 
     It 'publishes nothing and warns on a commit that did not raise the version' {
