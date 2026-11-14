@@ -5,7 +5,7 @@ Publishes the GitHub Release of ModuleVersion of engine/GitHubOrg.psd1 when it h
 The release is vX.Y.Z at the commit of the run: title vX.Y.Z, the notes of the section ## [X.Y.Z] of CHANGELOG.md,
 marked Latest, never a draft; gh release create also creates the tag when it is missing. A version that has its
 release already is left alone, so every push to main runs this and only the merge of a release pull request publishes:
-the release belongs to the commit that raised ModuleVersion (git log --first-parent, which needs the full history), and
+the release belongs to the commit that raised ModuleVersion (its first parent has another ModuleVersion), and
 a run of any other commit leaves it to that commit's run, however the runs are ordered.
 
 The repository has immutable releases: a published release and its tag never change afterwards. So the script stops
@@ -37,7 +37,8 @@ $ErrorActionPreference = 'Stop'
 $version = [string](Import-PowerShellDataFile -Path $ManifestPath).ModuleVersion
 $tag = "v$version"
 
-# The notes: the lines under '## [X.Y.Z]' up to the next heading of that level or the link definitions at the end.
+# The notes: the lines under '## [X.Y.Z]' up to the next heading of that level, without the link definitions that end
+# the file. A section needs an entry, a line that is not a heading.
 $notes = [System.Collections.Generic.List[string]]::new()
 $inSection = $false
 foreach ($line in Get-Content -Path $ChangelogPath) {
@@ -47,51 +48,59 @@ foreach ($line in Get-Content -Path $ChangelogPath) {
         continue
     }
     if ($inSection) {
-        if ($line -match '^\[[^\]]+\]: ') { break }
         $notes.Add($line)
     }
 }
+while ($notes.Count -gt 0 -and ($notes[-1] -match '^\s*$' -or $notes[-1] -match '^\[[^\]]+\]: ')) {
+    $notes.RemoveAt($notes.Count - 1)
+}
 $notesText = ($notes -join "`n").Trim()
-if (-not $notesText) {
-    throw "$(Split-Path -Path $ChangelogPath -Leaf) has no notes under ## [$version]: move the entries of the release under it first."
+if (-not ($notes | Where-Object { $_ -match '\S' -and $_ -notmatch '^#' })) {
+    throw "$(Split-Path -Path $ChangelogPath -Leaf) has no entries under ## [$version]: move the entries of the release under it first."
+}
+
+function Invoke-Git {
+    # Runs git in the folder of the manifest and throws on a failure; returns its output.
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    $output = & git -C (Split-Path -Path (Resolve-Path -Path $ManifestPath) -Parent) @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "git $($Arguments[0]) failed with exit code $LASTEXITCODE."
+    }
+    $output
 }
 
 if (-not $Commit) {
-    $Commit = $env:GITHUB_SHA
+    $Commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { 'HEAD' }
 }
-if (-not $Commit) {
-    $Commit = & git rev-parse HEAD
-    if ($LASTEXITCODE -ne 0) {
-        throw "git rev-parse HEAD failed with exit code $LASTEXITCODE."
-    }
-}
+$Commit = [string](Invoke-Git -Arguments @('rev-parse', '--verify', '--quiet', "$Commit^{commit}"))
 
 $pinned = Get-PinnedGitHubApiVersion -Path $ModulePath
 $header = @('--header', "X-GitHub-Api-Version: $pinned")
 
 # A published release: every commit of main after the release pull request, the tag at an earlier commit.
-$release = @(Invoke-Gh release list --json 'tagName,isDraft' --limit 1000 | ConvertFrom-Json) |
-    Where-Object { $_.tagName -ceq $tag } | Select-Object -First 1
+$releases = @(Invoke-Gh release list --json 'tagName,isDraft' --limit 1000 | ConvertFrom-Json)
+$release = $releases | Where-Object { $_.tagName -ceq $tag } | Select-Object -First 1
 if ($release -and $release.isDraft) {
     throw "A draft release $tag exists; publish or delete it by hand, then run this again."
 }
 
-# The release belongs to the commit of main that raised ModuleVersion to the version: the merge of the release pull
-# request. Another run without a release (a later commit whose run finished first) leaves it to the run of that commit.
-$raisedAt = $null
+# The release belongs to the commit that raised ModuleVersion against its first parent: the merge of the release pull
+# request. A run of a later commit without a release leaves it to the run of that commit, however the runs are ordered.
+$raises = $false
 if (-not $release) {
-    $manifestDirectory = Split-Path -Path (Resolve-Path -Path $ManifestPath) -Parent
-    $pattern = "ModuleVersion[[:space:]]*=[[:space:]]*'$([regex]::Escape($version))'"
-    $raisedAt = @(& git -C $manifestDirectory log -1 --first-parent --diff-merges=first-parent --no-patch --format=%H "-G$pattern" -- (Split-Path -Path $ManifestPath -Leaf))[0]
-    if ($LASTEXITCODE -ne 0) {
-        throw "git log of $ManifestPath failed with exit code $LASTEXITCODE."
+    $parentManifest = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "$([guid]::NewGuid()).psd1"
+    try {
+        # A temporary local file, read back below: written under -WhatIf too.
+        Invoke-Git -Arguments @('show', "$Commit^1:./$(Split-Path -Path $ManifestPath -Leaf)") | Set-Content -Path $parentManifest -WhatIf:$false
+        $raises = [string](Import-PowerShellDataFile -Path $parentManifest).ModuleVersion -ne $version
     }
-    if (-not $raisedAt) {
-        throw "No commit of the first-parent history raised ModuleVersion to $version; the checkout needs the full history (fetch-depth: 0)."
+    finally {
+        Remove-Item -LiteralPath $parentManifest -ErrorAction Ignore
     }
 }
 
-if (-not $release -and $raisedAt -ceq $Commit) {
+if ($raises) {
     # A tag without a release must be at this commit, peeled when it is annotated. matching-refs lists every tag the
     # name starts, so only the exact ref counts.
     $ref = @(Invoke-Gh api @header "repos/{owner}/{repo}/git/matching-refs/tags/$tag" | ConvertFrom-Json) |
@@ -107,14 +116,21 @@ if (-not $release -and $raisedAt -ceq $Commit) {
     }
 }
 
+# Latest unless a published release has a higher version (a release of a lower version that publishes after it).
+$higher = @($releases | Where-Object { -not $_.isDraft -and $_.tagName -match '^v(\d+\.\d+\.\d+)$' -and [version]$Matches[1] -gt [version]$version })
+$latest = if ($higher) { '--latest=false' } else { '--latest' }
+
 $status = if ($release) {
     'released'
 }
-elseif ($raisedAt -cne $Commit) {
-    "waits for $raisedAt"
+elseif (-not $raises) {
+    # Visible in the annotations of every later run until someone acts: re-run the jobs of the release commit's run, or
+    # raise the version again when that commit fails its checks for good.
+    Write-Host "::warning::Release $tag is not published: only the run of the commit that raised ModuleVersion to $version publishes it. Re-run the jobs of that run, or raise the version again."
+    'waits for the commit that raised it'
 }
 elseif ($PSCmdlet.ShouldProcess("$tag at $Commit", 'gh release create')) {
-    Invoke-Gh release create $tag --target $Commit --title $tag --notes $notesText --latest | Out-Null
+    Invoke-Gh release create $tag --target $Commit --title $tag --notes $notesText $latest | Out-Null
     'published'
 }
 else {

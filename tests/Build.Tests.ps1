@@ -22,6 +22,19 @@ Describe 'build.psd1' {
         @($checks.CiStep | Sort-Object) | Should -Be @($ciSteps | Sort-Object)
     }
 
+    It 'publishes a release in ci.yml only after every other job passed' {
+        # An immutable release of a commit whose new job failed could not be taken back.
+        $lines = Get-Content -Path (Join-Path -Path $root -ChildPath '.github/workflows/ci.yml')
+        $jobLines = $lines[([array]::IndexOf($lines, 'jobs:') + 1)..($lines.Count - 1)]
+        $jobs = @($jobLines | Where-Object { $_ -match '^  ([a-z][\w-]*):\s*$' } | ForEach-Object { $Matches[1] })
+        $start = [array]::IndexOf($lines, '  release:')
+        $needs = @($lines[($start + 1)..($lines.Count - 1)] | Where-Object { $_ -match '^    needs:\s*\[(.+)\]' } | Select-Object -First 1 |
+                ForEach-Object { $Matches[1] -split ',' | ForEach-Object { $_.Trim() } })
+
+        $jobs | Should -Contain 'release'
+        @($needs | Sort-Object) | Should -Be @($jobs | Where-Object { $_ -ne 'release' } | Sort-Object)
+    }
+
     It 'lints every workflow of .github/workflows and engine/examples/org-checks.yml with actionlint, in build.psd1 and ci.yml' {
         # actionlint takes the files by name to reach the reference copy outside .github/workflows, and then checks
         # only those: a workflow added later must be named in both places.
