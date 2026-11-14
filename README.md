@@ -1,5 +1,7 @@
 # github-org-bootstrap
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/devntoltd/github-org-bootstrap/badge)](https://scorecard.dev/viewer/?uri=github.com/devntoltd/github-org-bootstrap)
+
 Settings of a GitHub organization as a reviewable config: a PowerShell tool reads the organization, plans the
 difference from your config, asks once, and applies only what the config says. Published by
 [Devnto](https://github.com/devntoltd) under the [Apache License 2.0](LICENSE).

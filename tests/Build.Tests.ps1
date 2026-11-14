@@ -35,6 +35,24 @@ Describe 'build.psd1' {
         @($needs | Sort-Object) | Should -Be @($jobs | Where-Object { $_ -ne 'release' } | Sort-Object)
     }
 
+    It 'keeps scorecard.yml within the rules the Scorecard API checks before it accepts a result' {
+        # actionlint and zizmor accept what breaks them; the API would reject the result on main, after the merge.
+        $text = Get-Content -Raw -Path (Join-Path -Path $root -ChildPath '.github/workflows/scorecard.yml')
+        $allowed = @('actions/checkout', 'actions/upload-artifact', 'github/codeql-action/upload-sarif', 'ossf/scorecard-action', 'step-security/harden-runner')
+        $uses = @([regex]::Matches($text, '(?m)^\s+(?:- )?uses:\s*([^@\s]+)@') | ForEach-Object { $_.Groups[1].Value })
+
+        $text | Should -Not -Match '(?m)^(env|defaults):'
+        $text | Should -Not -Match '(?m)^\s+(- )?run:'
+        $text | Should -Not -Match '(?m)^\s+(env|defaults|container|services):'
+        $text | Should -Not -Match '(?ms)^permissions:\s*\r?\n\s+\S+:\s*write'
+        $jobs = $text.Substring($text.IndexOf("`njobs:"))
+        @([regex]::Matches($jobs, '(?m)^  [a-z][\w-]*:\s*$')).Count | Should -Be 1 -Because 'one job'
+        $uses.Count | Should -BeGreaterThan 0
+        foreach ($action in $uses) {
+            $allowed | Should -Contain $action
+        }
+    }
+
     It 'lints every workflow of .github/workflows and engine/examples/org-checks.yml with actionlint, in build.psd1 and ci.yml' {
         # actionlint takes the files by name to reach the reference copy outside .github/workflows, and then checks
         # only those: a workflow added later must be named in both places.
