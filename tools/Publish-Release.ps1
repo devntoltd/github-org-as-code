@@ -2,17 +2,18 @@
 .SYNOPSIS
 Publishes the GitHub Release of ModuleVersion of engine/GitHubOrg.psd1 when it has none, and prints the status.
 .DESCRIPTION
-The release is vX.Y.Z at the commit of the run: title vX.Y.Z, the notes of the section ## [X.Y.Z] of CHANGELOG.md,
-marked Latest, never a draft; gh release create also creates the tag when it is missing. A version that has its
-release already is left alone, so every push to main runs this and only the merge of a release pull request publishes:
-the release belongs to the commit that raised ModuleVersion (its first parent has another ModuleVersion), and
-a run of any other commit leaves it to that commit's run, however the runs are ordered.
+The release is vX.Y.Z at the commit checked out (HEAD), from which the manifest and the changelog are read, so the
+script stops when either differs from it: title vX.Y.Z, the notes of the section ## [X.Y.Z] of CHANGELOG.md, never a
+draft, Latest unless a published release has a higher version; gh release create also creates the tag when it is
+missing. A version that has its release already is left alone, so every push to main runs this and only the merge of a
+release pull request publishes: the release belongs to the commit that raised ModuleVersion (its first parent has
+another ModuleVersion), and a run of any other commit leaves it to that commit's run, however the runs are ordered.
 
 The repository has immutable releases: a published release and its tag never change afterwards. So the script stops
-before any write when the changelog has no notes for the version, when the tag is at another commit, or when a draft
+before any write when the changelog has no entries for the version, when the tag is at another commit, or when a draft
 release of the tag exists. A tag at the commit without a release (a run that stopped in between) gets its release.
 
-The job release of .github/workflows/ci.yml runs it after every check of the commit passed (decision
+The job release of .github/workflows/ci.yml runs it on the commit of the run after every check passed (decision
 docs/decisions/2026-11-14-release-workflow.md). Uses gh, signed in (GH_TOKEN in Actions) and pointed at the repository
 (GH_REPO in Actions, the git remote of the current directory otherwise).
 .EXAMPLE
@@ -25,14 +26,30 @@ param(
     # The changelog with the section of the version.
     [string]$ChangelogPath = (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'CHANGELOG.md'),
     # The module that pins the REST API version the gh api calls send.
-    [string]$ModulePath = (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'shared/GitHubOrg.Common.psm1'),
-    # The commit to release: GITHUB_SHA in Actions, HEAD otherwise.
-    [string]$Commit
+    [string]$ModulePath = (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath 'shared/GitHubOrg.Common.psm1')
 )
 
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path -Path $PSScriptRoot -ChildPath 'GitHubIssue.ps1')
+
+function Invoke-Git {
+    # Runs git in the folder of the manifest and throws on a failure; returns its output.
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    $output = & git -C (Split-Path -Path (Resolve-Path -Path $ManifestPath) -Parent) @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "git $($Arguments[0]) failed with exit code $LASTEXITCODE."
+    }
+    $output
+}
+
+# The release points at HEAD, and its version and notes come from the files: they must be those of HEAD.
+$Commit = [string](Invoke-Git -Arguments @('rev-parse', '--verify', '--quiet', 'HEAD^{commit}'))
+& git -C (Split-Path -Path (Resolve-Path -Path $ManifestPath) -Parent) diff --quiet HEAD -- (Resolve-Path -Path $ManifestPath) (Resolve-Path -Path $ChangelogPath)
+if ($LASTEXITCODE -ne 0) {
+    throw "$(Split-Path -Path $ManifestPath -Leaf) or $(Split-Path -Path $ChangelogPath -Leaf) differ from the commit checked out ($Commit); release from a clean checkout of the commit."
+}
 
 $version = [string](Import-PowerShellDataFile -Path $ManifestPath).ModuleVersion
 $tag = "v$version"
@@ -58,22 +75,6 @@ $notesText = ($notes -join "`n").Trim()
 if (-not ($notes | Where-Object { $_ -match '\S' -and $_ -notmatch '^#' })) {
     throw "$(Split-Path -Path $ChangelogPath -Leaf) has no entries under ## [$version]: move the entries of the release under it first."
 }
-
-function Invoke-Git {
-    # Runs git in the folder of the manifest and throws on a failure; returns its output.
-    param([Parameter(Mandatory)][string[]]$Arguments)
-
-    $output = & git -C (Split-Path -Path (Resolve-Path -Path $ManifestPath) -Parent) @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "git $($Arguments[0]) failed with exit code $LASTEXITCODE."
-    }
-    $output
-}
-
-if (-not $Commit) {
-    $Commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { 'HEAD' }
-}
-$Commit = [string](Invoke-Git -Arguments @('rev-parse', '--verify', '--quiet', "$Commit^{commit}"))
 
 $pinned = Get-PinnedGitHubApiVersion -Path $ModulePath
 $header = @('--header', "X-GitHub-Api-Version: $pinned")

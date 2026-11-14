@@ -66,7 +66,6 @@ BeforeAll {
 Describe 'Publish-Release.ps1' {
     BeforeEach {
         Initialize-TestRelease -Folder (New-Item -ItemType Directory -Path (Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid()))).FullName
-        $script:paths.Commit = $script:commit
         # The mocks run inside the script under test: the fixtures are found by name (dynamic scoping), so their names
         # must not clash with variables of the script.
         Mock gh {
@@ -83,17 +82,20 @@ Describe 'Publish-Release.ps1' {
             }
         }
         Mock Write-Host { }
-        # git: rev-parse resolves a revision to $TestResolved (the revision itself when unset); show of the parent's
-        # manifest gives $TestParentManifest, a failure when it is $null.
-        $script:TestResolved = $null
+        # git: rev-parse resolves HEAD to $TestHead; diff answers whether the manifest or the changelog differ from it;
+        # show of the parent's manifest gives $TestParentManifest, a failure when it is $null.
+        $script:TestHead = $script:commit
+        $script:TestChanged = $false
         $script:TestParentManifest = "@{ ModuleVersion = '1.0.0' }"
         $script:TestGitCalls = [System.Collections.Generic.List[string[]]]::new()
         Mock git {
             $TestGitCalls.Add([string[]]$args)
             $global:LASTEXITCODE = 0
             if ($args -contains 'rev-parse') {
-                $revision = [string]($args | Where-Object { $_ -like '*^{commit}' }) -replace '\^\{commit\}$'
-                if ($TestResolved) { $TestResolved } else { $revision }
+                $TestHead
+            }
+            elseif ($args -contains 'diff') {
+                if ($TestChanged) { $global:LASTEXITCODE = 1 }
             }
             elseif ($args -contains 'show') {
                 if ($null -eq $TestParentManifest) { $global:LASTEXITCODE = 128 } else { $TestParentManifest -split "`n" }
@@ -244,27 +246,21 @@ Describe 'Publish-Release.ps1' {
         Get-GhCall -Command 'release create' | Should -BeNullOrEmpty
     }
 
-    It 'resolves the commit to its full SHA' {
-        $script:paths.Commit = 'HEAD'
-        $script:TestResolved = $script:other
+    It 'releases the commit checked out' {
+        $script:TestHead = $script:other
 
         & $script:releaseScript @paths
 
         Get-GhOption -Call (Get-GhCall -Command 'release create')[0] -Name '--target' | Should -Be $script:other
+        @($TestGitCalls | Where-Object { $_ -contains 'rev-parse' })[0] | Should -Contain 'HEAD^{commit}'
     }
 
-    It 'takes the commit of the run from GITHUB_SHA' {
-        $saved = $env:GITHUB_SHA
-        $env:GITHUB_SHA = $script:other
-        try {
-            $paths.Remove('Commit')
-            & $script:releaseScript @paths
-        }
-        finally {
-            $env:GITHUB_SHA = $saved
-        }
+    It 'stops before any gh call when the manifest or the changelog differ from the commit checked out' {
+        # The version and the notes are read from the files: they must be those of the commit the release points at.
+        $script:TestChanged = $true
 
-        Get-GhOption -Call (Get-GhCall -Command 'release create')[0] -Name '--target' | Should -Be $script:other
+        { & $script:releaseScript @paths } | Should -Throw '*differ from the commit checked out*'
+        $TestGhCalls | Should -BeNullOrEmpty
     }
 }
 
@@ -310,15 +306,31 @@ Describe 'Publish-Release.ps1 with a real git history' {
         $env:GITHUB_STEP_SUMMARY = $script:savedSummary
     }
 
-    It 'publishes from the commit that raised the version, given by a short SHA' {
-        & $script:releaseScript @paths -Commit $script:raised.Substring(0, 7)
+    It 'publishes from the commit that raised the version' {
+        git -C $script:repository checkout -q $script:raised 2>&1 | Out-Null
+
+        & $script:releaseScript @paths
 
         Get-GhOption -Call (Get-GhCall -Command 'release create')[0] -Name '--target' | Should -Be $script:raised
     }
 
     It 'publishes nothing from a later commit that only reformats the version line' {
-        & $script:releaseScript @paths -Commit $script:reformatted
+        git -C $script:repository checkout -q $script:reformatted 2>&1 | Out-Null
 
+        & $script:releaseScript @paths
+
+        Get-GhCall -Command 'release create' | Should -BeNullOrEmpty
+    }
+
+    It 'stops when the manifest has changes that are not committed' {
+        git -C $script:repository checkout -q $script:raised 2>&1 | Out-Null
+        Write-TestManifest -Version '1.2.0'
+        try {
+            { & $script:releaseScript @paths } | Should -Throw '*differ from the commit checked out*'
+        }
+        finally {
+            git -C $script:repository checkout -q -- Engine.psd1 2>&1 | Out-Null
+        }
         Get-GhCall -Command 'release create' | Should -BeNullOrEmpty
     }
 }

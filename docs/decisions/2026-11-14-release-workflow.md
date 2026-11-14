@@ -24,9 +24,10 @@ publishes the release.
   would otherwise take the place of the release merge for good. For the same reason every run of `main` has a
   concurrency group of its own commit. A later run without the release publishes nothing and warns in its annotations;
   when the release commit fails a check for good, the fix raises the version again.
-- **What:** `tools/Publish-Release.ps1` reads `ModuleVersion`. Without a release `vX.Y.Z` it publishes one at the
-  commit of the run: title `vX.Y.Z`, the body of the changelog section without the link definitions that end the file,
-  never a draft, marked Latest unless a published release has a higher version.
+- **What:** `tools/Publish-Release.ps1` reads `ModuleVersion` and the changelog of the commit checked out (it stops when
+  the files differ from that commit, so a release never points at other code than its notes). Without a release `vX.Y.Z`
+  it publishes one at that commit: title `vX.Y.Z`, the body of the changelog section without the link definitions that
+  end the file, never a draft, marked Latest unless a published release has a higher version.
 - **Rights:** only that job has `contents: write`; the workflow and every other job keep `contents: read`.
 - **Checks before writing:** the repository has immutable releases (enforced by the organization), so a published
   release, its notes and its tag cannot be changed or moved afterwards. The script stops before any write when the
