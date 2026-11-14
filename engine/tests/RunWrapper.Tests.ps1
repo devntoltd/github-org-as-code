@@ -25,7 +25,7 @@ Describe 'engine/examples/run.ps1' {
         Copy-Item -LiteralPath $script:source -Destination $script:run
         Set-Content -LiteralPath (Join-Path -Path $directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-bootstrap'; Tag = 'v1.0.0'; Commit = '$script:commit' }"
         # Shared with the mocks, whose bodies do not see this file's script scope: a closure keeps the reference.
-        $state = @{ Directory = $directory; Head = $null; Status = @(); TagLines = @("$script:commit`trefs/tags/v1.0.0"); Commit = $script:commit; Stub = $script:stub }
+        $state = @{ Directory = $directory; Head = $null; Status = @(); TagLines = @("$script:commit`trefs/tags/v1.0.0"); Commit = $script:commit; Stub = $script:stub; Wrapper = (Get-Content -Raw -LiteralPath $script:source) }
         $script:state = $state
 
         Mock git { $global:LASTEXITCODE = 0; $state.TagLines }.GetNewClosure() -ParameterFilter { $args[0] -eq 'ls-remote' }
@@ -37,18 +37,22 @@ Describe 'engine/examples/run.ps1' {
             $engine = Join-Path -Path $state.Directory -ChildPath '.engine/engine'
             New-Item -ItemType Directory -Path $engine -Force | Out-Null
             Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'bootstrap.ps1') -Value $state.Stub
+            New-Item -ItemType Directory -Path (Join-Path -Path $engine -ChildPath 'examples') -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/run.ps1') -Value $state.Wrapper -NoNewline
         }.GetNewClosure() -ParameterFilter { $args -contains 'checkout' }
         Mock git { $global:LASTEXITCODE = 0; $state.Head }.GetNewClosure() -ParameterFilter { $args -contains 'rev-parse' }
         # Untracked files show only when asked for, as with status.showUntrackedFiles=no in the user's git config.
         Mock git { $global:LASTEXITCODE = 0; if ($args -contains '--untracked-files=all') { $state.Status } }.GetNewClosure() -ParameterFilter { $args -contains 'status' }
 
         function Initialize-TestEngine {
-            # A checkout already in place at $Head: .engine/.git and the stub engine.
+            # A checkout already in place at $Head: .engine/.git, the stub engine and the wrapper of the pinned engine.
             param([Parameter(Mandatory)][string]$Head)
 
             $engine = Join-Path -Path $script:state.Directory -ChildPath '.engine/engine'
             New-Item -ItemType Directory -Path $engine, (Join-Path -Path $script:state.Directory -ChildPath '.engine/.git') -Force | Out-Null
-            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'bootstrap.ps1') -Value $script:stub
+            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'bootstrap.ps1') -Value $script:state.Stub
+            New-Item -ItemType Directory -Path (Join-Path -Path $engine -ChildPath 'examples') -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/run.ps1') -Value $script:state.Wrapper -NoNewline
             $script:state.Head = $Head
         }
 
@@ -155,6 +159,61 @@ Describe 'engine/examples/run.ps1' {
         # Only the switches given, -WhatIf among them; the others are bound as false.
         @($call.Switches | Sort-Object) | Should -Be @('PageWalk', 'WhatIf')
         $call.WhatIf | Should -BeTrue
+    }
+
+    It 'warns after the engine ran when the copy differs from the wrapper of the pinned engine (<Checkout>)' -ForEach @(
+        @{ Checkout = 'a new checkout' }
+        @{ Checkout = 'a reused checkout' }
+    ) {
+        # A config repository raised Tag and Commit but kept its old run.ps1.
+        $script:state.Wrapper = "# The wrapper of a later release.`n"
+        # The engine prints its plan: the warning comes after it, where the end of the run shows it.
+        $script:state.Stub += "`n'engine output'"
+        if ($Checkout -eq 'a reused checkout') { Initialize-TestEngine -Head $script:commit }
+
+        $output = @(& $script:run -WhatIf 3>&1)
+
+        $pinned = [System.IO.Path]::GetFullPath((Join-Path -Path $script:state.Directory -ChildPath '.engine/engine/examples/run.ps1'))
+        $warnings = @($output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+        $warnings.Count | Should -Be 1
+        $warnings[0].Message | Should -Be "run.ps1 differs from the wrapper of v1.0.0; copy $pinned over $script:run, unless you changed it on purpose."
+        $output[-1] | Should -BeOfType ([System.Management.Automation.WarningRecord])
+        $output | Should -Contain 'engine output'
+        Get-TestCall | Should -Not -BeNullOrEmpty
+    }
+
+    It 'warns when the engine fails, and the failure of the engine still stops the run' {
+        $script:state.Wrapper = "# The wrapper of a later release.`n"
+        $script:state.Stub = "throw 'the engine failed'"
+
+        $failure = $null
+        try {
+            & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+        }
+        catch {
+            $failure = $_
+        }
+
+        [string]$failure | Should -BeLike '*the engine failed*'
+        @($warnings).Count | Should -Be 1
+        [string]$warnings[0] | Should -BeLike 'run.ps1 differs from the wrapper of v1.0.0;*'
+    }
+
+    It 'does not warn when the copy equals the wrapper of the pinned engine apart from <Case>' -ForEach @(
+        @{ Case = 'LF in the pinned one'; Pinned = { param($t) $t } }
+        @{ Case = 'CRLF in the pinned one'; Pinned = { param($t) $t -replace "`n", "`r`n" } }
+        @{ Case = 'CRLF in the copy'; Own = { param($t) $t -replace "`n", "`r`n" } }
+        @{ Case = 'the newlines at the end'; Pinned = { param($t) $t.TrimEnd() } ; Own = { param($t) "$t`n`n" } }
+        @{ Case = 'a signature block of the copy'; Own = { param($t) "$t# SIG # Begin signature block`n# MIIFfAYJKoZIhvcNAQcCoIIFbTCC`n# SIG # End signature block`n" } }
+    ) {
+        $text = (Get-Content -Raw -LiteralPath $script:source) -replace "`r`n", "`n"
+        $script:state.Wrapper = if ($Pinned) { & $Pinned $text } else { $text }
+        if ($Own) { Set-Content -LiteralPath $script:run -Value (& $Own $text) -NoNewline }
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $warnings | Should -BeNullOrEmpty
+        Get-TestCall | Should -Not -BeNullOrEmpty
     }
 
     It 'rejects a manifest with a short commit' {

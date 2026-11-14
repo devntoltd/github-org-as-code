@@ -8,6 +8,12 @@ release unchanged.
 
 ## [Unreleased]
 
+### Added
+
+- `engine/examples/run.ps1` warns when it differs from the wrapper of the engine it pins (line endings apart), with the
+  file to copy over it: raising `Tag` and `Commit` never updated the copy in a config repository. Copy this release's
+  `run.ps1` once to get the warning; later wrappers then announce themselves.
+
 ## [1.0.1] - 2026-11-14
 
 ### Changed

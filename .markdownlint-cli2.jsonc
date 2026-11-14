@@ -13,7 +13,9 @@
     "MD048": { "style": "backtick" },
     "MD049": { "style": "asterisk" },
     "MD050": { "style": "asterisk" },
-    "MD055": { "style": "leading_and_trailing" }
+    "MD055": { "style": "leading_and_trailing" },
+    // Repeated headings only among siblings: every release of CHANGELOG.md has its own Added, Changed, Fixed.
+    "MD024": { "siblings_only": true }
   },
   "globs": ["**/*.md"],
   // The decisions are dated records, not edited after the fact (CONTRIBUTING.md): linting them would mean rewriting

@@ -6,7 +6,7 @@ How the code of the engine is put together: the pipeline a run goes through, whe
 
 ## Entry points
 
-- `engine/bootstrap.ps1` is thin. It imports `shared/GitHubOrg.Common.psm1`, then the module through its manifest `engine/GitHubOrg.psd1` (the release in `ModuleVersion`, equal to the latest release of `CHANGELOG.md`, a test checks it), and calls `Invoke-GitHubOrgBootstrap`, which prints the name and version of the engine first and which runs the gh check (`Assert-GhVersion`) after the config step, so a config it cannot read stops the run before any gh call. `engine/examples/run.ps1` is a copy for config repositories: it checks out the pinned engine and runs this script.
+- `engine/bootstrap.ps1` is thin. It imports `shared/GitHubOrg.Common.psm1`, then the module through its manifest `engine/GitHubOrg.psd1` (the release in `ModuleVersion`, equal to the latest release of `CHANGELOG.md`, a test checks it), and calls `Invoke-GitHubOrgBootstrap`, which prints the name and version of the engine first and which runs the gh check (`Assert-GhVersion`) after the config step, so a config it cannot read stops the run before any gh call. `engine/examples/run.ps1` is a copy for config repositories: it checks out the pinned engine and runs this script, and warns after the run when it differs from the wrapper of the pinned engine (a copy is never updated by the pin).
 - `build.ps1` is the developer entry point: the checks of `ci.yml` and the scripts of `tools/`, listed in `build.psd1` (see [CONTRIBUTING](../CONTRIBUTING.md#checks)).
 
 ## The pipeline of a run
