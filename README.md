@@ -83,7 +83,7 @@ Keep `github.json` in a private repository of your organization and run a pinned
 minor and stops before any GitHub call otherwise. The [changelog](CHANGELOG.md) lists every format change with the
 edit it needs. Upgrade in one pull request of your config repository: raise `Tag` and `Commit`, edit `github.json` as
 the changelog says (it also says when to copy a new `engine/examples/run.ps1` over yours: the pin does not update
-your copy, and a wrapper of a later release than 1.0.1 warns while it differs from the pinned one), run
+your copy, and a wrapper of 1.1.0 or later warns while it differs from the pinned one), run
 `./run.ps1 -WhatIf` and put the plan in the pull request. A plan that changes anything is a change to your
 organization and is reviewed as one.
 
