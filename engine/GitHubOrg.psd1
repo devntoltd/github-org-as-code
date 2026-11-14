@@ -1,7 +1,7 @@
 @{
     # The engine module. ModuleVersion is the release; a test keeps it equal to the latest release of CHANGELOG.md.
     RootModule        = 'GitHubOrg.psm1'
-    ModuleVersion     = '1.0.1'
+    ModuleVersion     = '1.1.0'
     GUID              = '5c0f2b8e-7d4a-4f36-9b1e-3a6d8c2e4f71'
     Author            = 'Devnto'
     CompanyName       = 'Devnto'

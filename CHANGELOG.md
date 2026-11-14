@@ -8,11 +8,14 @@ release unchanged.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-14
+
 ### Added
 
-- `engine/examples/run.ps1` warns when it differs from the wrapper of the engine it pins (line endings apart), with the
-  file to copy over it: raising `Tag` and `Commit` never updated the copy in a config repository. Copy this release's
-  `run.ps1` once to get the warning; later wrappers then announce themselves.
+- `engine/examples/run.ps1` warns, as the last line of a run, when it differs from the wrapper of the engine it pins,
+  with the file to copy over it: raising `Tag` and `Commit` never updates the copy in a config repository. Line
+  endings, newlines at the end and a signature block do not count, and the run goes on either way. Copy this
+  release's `run.ps1` once to get the warning; later wrappers then announce themselves.
 
 ## [1.0.1] - 2026-11-14
 
@@ -40,6 +43,7 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/devntoltd/github-org-bootstrap/releases/tag/v1.0.0
