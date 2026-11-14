@@ -43,7 +43,8 @@ The full reference of every setting is [engine/settings.md](engine/settings.md);
 ## Requirements
 
 - PowerShell 7.6 or later (`pwsh`).
-- [GitHub CLI](https://cli.github.com/) 2.48.0 or later, signed in as an owner of the organization:
+- [GitHub CLI](https://cli.github.com/) 2.48.0 or later ([how to install it](engine/README.md#requirements) on Windows,
+  macOS and Linux), signed in as an owner of the organization:
   `gh auth login`, then `gh auth refresh -h github.com -s admin:org,admin:org_hook` before a run.
 - No PowerShell module besides what the repository holds.
 

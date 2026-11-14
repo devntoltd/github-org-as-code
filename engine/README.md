@@ -20,10 +20,11 @@ Design and reasoning: the [founding decision](../docs/decisions/2026-11-13-githu
 
 ## Requirements
 
-PowerShell 7.6 and the [GitHub CLI](https://cli.github.com/) 2.48.0 or later, signed in as an owner of the organization (open a new terminal after installing, otherwise `gh` is not on `PATH` yet):
+[PowerShell 7.6](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) (`pwsh`; on macOS and Linux run the scripts from it, as a shell such as bash does not start a `.ps1`) and the [GitHub CLI](https://cli.github.com/) 2.48.0 or later, signed in as an owner of the organization. After `winget install`, open a new terminal: winget puts `gh` on `PATH` only for new sessions. On Linux, install gh from GitHub's package repository as [its guide](https://github.com/cli/cli/blob/trunk/docs/install_linux.md) says: a distribution's own package can be older than the minimum.
 
 ```powershell
-winget install --id GitHub.cli -e
+winget install --id GitHub.cli -e   # Windows
+brew install gh                     # macOS
 gh auth login
 ```
 

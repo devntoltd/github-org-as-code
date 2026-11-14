@@ -8,6 +8,12 @@ release unchanged.
 
 ## [Unreleased]
 
+### Changed
+
+- When gh is missing or older than the minimum, the error names how to install or update it on Windows (winget),
+  macOS (Homebrew) and Linux (GitHub's package repository), instead of the winget command alone; the engine
+  reference shows the install commands of each.
+
 ## [1.1.0] - 2026-11-14
 
 ### Added

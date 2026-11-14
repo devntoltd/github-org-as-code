@@ -85,7 +85,7 @@ Describe 'Assert-GhVersion' {
     It 'rejects a gh older than the minimum with an upgrade command, without calling the API' {
         Register-TestGhStub -Responder { [pscustomobject]@{ ExitCode = 0; Output = 'gh version 2.47.0 (2024-04-03)' } }
 
-        { Assert-GhVersion } | Should -Throw '*gh 2.47.0 is older than 2.48.0*winget upgrade --id GitHub.cli -e*'
+        { Assert-GhVersion } | Should -Throw 'gh 2.47.0 is older than 2.48.0, the minimum this script needs. Update it: winget upgrade --id GitHub.cli -e (Windows), brew upgrade gh (macOS), from GitHub''s package repository (Linux: https://github.com/cli/cli/blob/trunk/docs/install_linux.md; a distribution''s own package can be older), or the way you installed it.'
         @(Get-TestGhCall | Where-Object { $_.Arguments[0] -eq 'api' }) | Should -BeNullOrEmpty
     }
 
@@ -93,7 +93,7 @@ Describe 'Assert-GhVersion' {
         Mock -ModuleName GitHubOrg.Common Test-GhInstalled { $false }
         Register-TestGhStub
 
-        { Assert-GhVersion } | Should -Throw '*not installed*winget install --id GitHub.cli -e*gh auth login*'
+        { Assert-GhVersion } | Should -Throw 'GitHub CLI (gh) is not installed. Install it: winget install --id GitHub.cli -e (Windows), brew install gh (macOS), or from GitHub''s package repository (Linux: https://github.com/cli/cli/blob/trunk/docs/install_linux.md); then sign in with: gh auth login'
         @(Get-TestGhCall).Count | Should -Be 0
         Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -like '  gh * installed missing *' }
     }
