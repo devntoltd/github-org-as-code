@@ -34,7 +34,7 @@ Describe 'Find-DependencyUpdate.ps1' {
             "        'Pester' = '6.2.0'"
             '    }'
             '    Tools   = @{'
-            "        'lychee' = @{ WinGetId = 'lycheeverse.lychee'; Version = '0.24.2'; Repository = 'lycheeverse/lychee' }"
+            "        'lychee' = @{ Version = '0.24.2'; Repository = 'lycheeverse/lychee' }"
             '    }'
             '}'
         )

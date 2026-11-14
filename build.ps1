@@ -150,8 +150,11 @@ if ($Name -eq 'all' -and $args.Count -gt 0) {
 
 $tool = $tools | Where-Object { $_.Name -eq $Name }
 $failures = 0
-# The checks use paths relative to the repository root.
+# The checks use paths relative to the repository root, and the tools Install-DevTools.ps1 put into .tools/bin before
+# any other installed version; the PATH of the session is restored afterwards.
 Push-Location -Path $PSScriptRoot
+$savedPath = $env:PATH
+$env:PATH = [System.IO.Path]::GetFullPath((Join-Path -Path $PSScriptRoot -ChildPath '.tools/bin')) + [System.IO.Path]::PathSeparator + $env:PATH
 try {
     if ($tool) {
         $parameters = $tool.Parameters
@@ -162,6 +165,7 @@ try {
     Invoke-BuildCheckList -Check $list -ExtraArgument $args -Failed ([ref]$failures)
 }
 finally {
+    $env:PATH = $savedPath
     Pop-Location
 }
 exit ([int]($failures -gt 0))

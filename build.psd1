@@ -28,5 +28,6 @@
         @{ Name = 'updates'; Description = 'Module and tool versions newer than the lock'; Script = 'tools/Find-DependencyUpdate.ps1'; Parameters = @{} }
         @{ Name = 'dependencies'; Description = 'Dependency update issue: status only'; Script = 'tools/Invoke-DependencyUpdateCheck.ps1'; Parameters = @{ WhatIf = $true } }
         @{ Name = 'release'; Description = 'Release of ModuleVersion: status only'; Script = 'tools/Publish-Release.ps1'; Parameters = @{ WhatIf = $true } }
+        @{ Name = 'tool-files'; Description = 'Pinned tool files against their releases'; Script = 'tools/Update-DevTool.ps1'; Parameters = @{} }
     )
 }

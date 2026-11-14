@@ -4,15 +4,17 @@ Installs what the checks of CONTRIBUTING.md need and sets up the git settings of
 .DESCRIPTION
 Run once on a new machine or clone, and again after a version changes; it skips what is already in place.
 
-- Command-line tools (the Tools of dev-tools.psd1): the exact versions CI uses, through winget. Without winget (not
-  Windows), it warns with what to install.
+- Command-line tools (the Tools of dev-tools.psd1): the exact versions CI uses, as the release file of this platform
+  (windows-x64, linux-x64, linux-arm64, macos-x64, macos-arm64; Windows on arm64 takes windows-x64), checked against
+  its SHA-256 in dev-tools.psd1 before it is extracted, into .tools/bin of this clone. A tool counts as installed while
+  .tools/bin holds it with a stamp of its pinned version and file (<command>.pinned). build.ps1 and the pre-commit
+  hook put .tools/bin first on PATH (docs/decisions/2026-11-14-dev-tools-download.md).
 - PowerShell modules (modules.lock.psd1 and the Modules of dev-tools.psd1): first a check that every dependency the
   Gallery lists for a locked version is locked in the same file, with a version in its range; then the exact versions
   for the current user with Install-PSResource -SkipDependencyCheck, the Authenticode signature checked on Windows.
 - git config --local: core.hooksPath .githooks (the secret scan of the staged changes before every commit) and
   blame.ignoreRevsFile .git-blame-ignore-revs (git blame skips the formatting commits).
 
-winget changes PATH only for new sessions: open a new terminal before running the checks.
 .EXAMPLE
 ./tools/Install-DevTools.ps1 -WhatIf
 .EXAMPLE
@@ -21,24 +23,78 @@ winget changes PATH only for new sessions: open a new terminal before running th
 [CmdletBinding(SupportsShouldProcess)]
 param(
     # Only the PowerShell modules: no command-line tools, no git settings (what CI runs).
-    [switch]$ModulesOnly
+    [switch]$ModulesOnly,
+    # Where the tools go.
+    [string]$ToolsPath = (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -ChildPath '.tools/bin'),
+    # The platform whose release files to install, such as linux-x64; the one this runs on by default.
+    [string]$Platform
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Path $PSScriptRoot -Parent
+# One full path throughout: the cmdlets resolve a relative one against the PowerShell location, the .NET calls (the
+# executable bit) against the process. It need not exist yet.
+$ToolsPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsPath)
 
-# The first x.y.z in the output of '<command> --version', or $null when the command is not found.
-function Get-ToolVersion {
-    param([string]$Command)
+# The platform this runs on, as dev-tools.psd1 names them: <os>-<architecture>.
+function Get-DevToolPlatform {
+    $os = if ($IsWindows) { 'windows' } elseif ($IsMacOS) { 'macos' } elseif ($IsLinux) { 'linux' } else { 'unknown' }
+    $architecture = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
+        'X64' { 'x64' }
+        'Arm64' { 'arm64' }
+        default { ([string]$_).ToLowerInvariant() }
+    }
+    "$os-$architecture"
+}
 
-    if (-not (Get-Command -Name $Command -ErrorAction SilentlyContinue)) {
-        return $null
+# Downloads the release file $Asset of $Tool, checks its SHA-256, and puts the executable $Executable it holds into
+# $ToolsPath with its stamp. Nothing in $ToolsPath changes before the file has its pinned hash.
+function Install-DevToolFile {
+    param([string]$Name, [hashtable]$Tool, [hashtable]$Asset, [string]$Executable, [string]$Stamp)
+
+    $work = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([guid]::NewGuid().ToString('n'))
+    New-Item -ItemType Directory -Path (Join-Path -Path $work -ChildPath 'files') -Force | Out-Null
+    try {
+        $file = Join-Path -Path $work -ChildPath $Asset.Name
+        # Retried as CI retries the same downloads: GitHub release files answer 5xx at times. A 404 is not retried.
+        Invoke-WebRequest -Uri "https://github.com/$($Tool.Repository)/releases/download/$($Tool.Tag)/$($Asset.Name)" -OutFile $file -MaximumRetryCount 5 -RetryIntervalSec 10
+        $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($hash -cne $Asset.Sha256) {
+            throw "$($Asset.Name) of $Name $($Tool.Version) has the SHA-256 $hash, not the pinned $($Asset.Sha256); nothing was installed."
+        }
+        $files = Join-Path -Path $work -ChildPath 'files'
+        if ($Asset.Name -like '*.zip') {
+            Expand-Archive -LiteralPath $file -DestinationPath $files
+        }
+        else {
+            # Relative paths: GNU tar (as git-bash puts first on PATH on Windows) reads C:\... as host:path.
+            Push-Location -LiteralPath $work
+            try {
+                & tar -xzf $Asset.Name -C 'files'
+                if ($LASTEXITCODE -ne 0) {
+                    throw "tar could not extract $($Asset.Name) (exit code $LASTEXITCODE)."
+                }
+            }
+            finally {
+                Pop-Location
+            }
+        }
+        $found = Get-ChildItem -LiteralPath $files -Recurse -File | Where-Object { $_.Name -ceq $Executable } | Select-Object -First 1
+        if (-not $found) {
+            throw "$($Asset.Name) of $Name $($Tool.Version) holds no $Executable."
+        }
+        New-Item -ItemType Directory -Path $ToolsPath -Force | Out-Null
+        $target = Join-Path -Path $ToolsPath -ChildPath $Executable
+        Copy-Item -LiteralPath $found.FullName -Destination $target -Force
+        if (-not $IsWindows) {
+            $execute = [System.IO.UnixFileMode]::UserExecute -bor [System.IO.UnixFileMode]::GroupExecute -bor [System.IO.UnixFileMode]::OtherExecute
+            [System.IO.File]::SetUnixFileMode($target, [System.IO.File]::GetUnixFileMode($target) -bor $execute)
+        }
+        Set-Content -LiteralPath (Join-Path -Path $ToolsPath -ChildPath "$Name.pinned") -Value $Stamp
     }
-    $text = (& $Command --version 2>&1) -join "`n"
-    if ($text -match '\d+\.\d+\.\d+') {
-        return $Matches[0]
+    finally {
+        Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
     }
-    return $null
 }
 
 # Whether $Version is inside a NuGet version range as the Gallery reports it: '[5.5.3, )', '(1.0, 2.0]', '[1.0]' or a
@@ -74,34 +130,38 @@ function Test-VersionInRange {
 $devTools = Import-PowerShellDataFile -Path (Join-Path -Path $root -ChildPath 'dev-tools.psd1')
 
 if (-not $ModulesOnly) {
+    $supported = @('linux-arm64', 'linux-x64', 'macos-arm64', 'macos-x64', 'windows-x64')
+    if (-not $Platform) {
+        $Platform = Get-DevToolPlatform
+    }
+    # Windows on arm64 runs the x64 builds through emulation.
+    $filePlatform = if ($Platform -eq 'windows-arm64') { 'windows-x64' } else { $Platform }
+    # Another platform gets no tools, but still the modules and the git settings: the secret scan of the hook works
+    # with any Betterleaks on PATH.
     $tools = $devTools.Tools
-    $hasWinget = [bool](Get-Command -Name winget -ErrorAction SilentlyContinue)
+    if ($filePlatform -notin $supported) {
+        Write-Warning "dev-tools.psd1 pins no release files for $Platform; the supported platforms are $($supported -join ', '). Install the tools of the checks at the versions of dev-tools.psd1 yourself."
+        $tools = @{}
+    }
     foreach ($name in $tools.Keys | Sort-Object) {
         $tool = $tools[$name]
-        $current = Get-ToolVersion -Command $name
-        if ($current -eq $tool.Version) {
-            Write-Host "$name $current is installed"
+        $asset = $tool.Assets[$filePlatform]
+        $executable = if ($filePlatform -like 'windows-*') { "$name.exe" } else { $name }
+        $stamp = "$($tool.Version) $($asset.Sha256)"
+        $stampPath = Join-Path -Path $ToolsPath -ChildPath "$name.pinned"
+        # An empty stamp reads as $null: -join makes it ''.
+        $found = if (Test-Path -LiteralPath $stampPath) { ((Get-Content -Raw -LiteralPath $stampPath) -join '').Trim() } else { '' }
+        $installed = (Test-Path -LiteralPath (Join-Path -Path $ToolsPath -ChildPath $executable)) -and $found -ceq $stamp
+        if ($installed) {
+            Write-Host "$name $($tool.Version) is installed"
             continue
         }
-        $found = if ($current) { "found $current" } else { 'not found' }
-        if (-not $hasWinget) {
-            Write-Warning "$name $($tool.Version) is needed ($found); install it from its release page."
-            continue
-        }
-        if ($PSCmdlet.ShouldProcess("$($tool.WinGetId) $($tool.Version) ($found)", 'winget install')) {
-            winget install --exact --id $tool.WinGetId --version $tool.Version --source winget --accept-package-agreements --accept-source-agreements
-            # APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE: that version is installed, but this session started before
-            # winget added it to PATH.
-            if ($LASTEXITCODE -eq -1978335189) {
-                Write-Warning "$name $($tool.Version) is installed, but not on the PATH of this session; open a new terminal."
-            }
-            elseif ($LASTEXITCODE -ne 0) {
-                throw "winget install $($tool.WinGetId) $($tool.Version) failed with exit code $LASTEXITCODE."
-            }
+        if ($PSCmdlet.ShouldProcess("$name $($tool.Version) ($($asset.Name)) into $ToolsPath", 'Download and install')) {
+            Install-DevToolFile -Name $name -Tool $tool -Asset $asset -Executable $executable -Stamp $stamp
+            Write-Host "$name $($tool.Version) installed into $ToolsPath"
         }
     }
 }
-
 $lock = Import-PowerShellDataFile -Path (Join-Path -Path $root -ChildPath 'modules.lock.psd1')
 $moduleSets = [ordered]@{ 'modules.lock.psd1' = $lock; 'dev-tools.psd1' = $devTools.Modules }
 
