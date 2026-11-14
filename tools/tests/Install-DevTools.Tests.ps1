@@ -27,6 +27,20 @@ Describe 'dev-tools.psd1' {
         $found | Should -Be $tools.Tools[$Name].Version
     }
 
+    It 'pins the <Name> SHA-256 of linux-x64 that .github/workflows/ci.yml downloads' -ForEach @(
+        @{ Name = 'actionlint'; Step = 'actionlint' }
+        @{ Name = 'betterleaks'; Step = 'Betterleaks' }
+        @{ Name = 'editorconfig-checker'; Step = 'EditorConfig' }
+        @{ Name = 'shellcheck'; Step = 'shellcheck' }
+    ) {
+        # The same file on the same platform: CI and a contributor on Linux run the same binary.
+        $tools = Import-PowerShellDataFile -Path (Join-Path -Path $script:root -ChildPath 'dev-tools.psd1')
+        $workflow = Get-Content -Path (Join-Path -Path $script:root -ChildPath '.github/workflows/ci.yml') -Raw
+
+        $workflow -match "(?s)- name: $Step\r?\n.*?SHA256: (?<sha>[0-9a-f]{64})" | Should -BeTrue
+        $tools.Tools[$Name].Assets['linux-x64'].Sha256 | Should -Be $Matches.sha
+    }
+
     # The central workflow (engine/examples/org-checks.yml) is copied by hand to the organization's .github repository, so its
     # pins must follow the ones of ci.yml, which Dependabot and the dependency check keep current. Dependabot never
     # updates the reference copy, so its pull requests fail here until the copy follows: the message says what to do.
