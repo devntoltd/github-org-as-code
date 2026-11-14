@@ -176,6 +176,15 @@
       "args": ["-NoProfile", "-File", "${workspaceFolder}/build.ps1", "release"],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
+    },
+    {
+      "label": "Tool files",
+      "detail": "Check the pinned release files of the tools against GitHub (writes nothing)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}/build.ps1", "tool-files"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
     }
   ]
 }
