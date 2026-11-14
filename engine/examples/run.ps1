@@ -7,7 +7,8 @@ Runs the engine version pinned in engine.psd1 against github.json, both next to 
 .DESCRIPTION
 Copy this file and engine.psd1 into the repository that holds the organization's config. The engine is checked out at
 the pinned commit into .engine/ next to this script (git-ignore it) and reused while the pin is unchanged; the run
-stops when the pinned tag does not point at the pinned commit, and when .engine/ has local changes. The switches are
+stops when the pinned tag does not point at the pinned commit, and when .engine/ has local changes; it warns when this
+file differs from the wrapper of the pinned engine, which raising the pin does not update. The switches are
 those of engine/bootstrap.ps1.
 
 .EXAMPLE
@@ -112,5 +113,26 @@ if ($head -cne $commit) {
     Assert-EngineUnchanged
 }
 
+# This file is a copy, which raising the pin does not update: a warning, after the engine's output where the end of
+# the run shows it, when it differs from the wrapper of the pinned engine. Line endings, the newlines at the end and an
+# Authenticode signature block of either file do not count. Not a stop, since a repository may keep a change on purpose
+# and the engine is the pinned one either way. engine/examples/run.ps1 is where every release keeps its wrapper: a
+# release that moved it would silence this check in the wrappers before it.
+function Get-WrapperText {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $text = (Get-Content -Raw -LiteralPath $Path) -replace "`r`n", "`n"
+    ($text -replace '(?s)\n# SIG # Begin signature block\n.*$', '').TrimEnd()
+}
+$pinnedWrapper = [System.IO.Path]::GetFullPath((Join-Path -Path $engine -ChildPath 'engine/examples/run.ps1'))
+$staleWrapper = (Test-Path -LiteralPath $pinnedWrapper) -and (Get-WrapperText -Path $PSCommandPath) -cne (Get-WrapperText -Path $pinnedWrapper)
+
 $bootstrap = Join-Path -Path $engine -ChildPath 'engine/bootstrap.ps1'
-& $bootstrap -ConfigPath (Join-Path -Path $PSScriptRoot -ChildPath 'github.json') -Force:$Force -SkipLatestVersionCheck:$SkipLatestVersionCheck -ManualChecklist:$ManualChecklist -PageWalk:$PageWalk -ValidateOnly:$ValidateOnly -WhatIf:$WhatIfPreference
+try {
+    & $bootstrap -ConfigPath (Join-Path -Path $PSScriptRoot -ChildPath 'github.json') -Force:$Force -SkipLatestVersionCheck:$SkipLatestVersionCheck -ManualChecklist:$ManualChecklist -PageWalk:$PageWalk -ValidateOnly:$ValidateOnly -WhatIf:$WhatIfPreference
+}
+finally {
+    if ($staleWrapper) {
+        Write-Warning "run.ps1 differs from the wrapper of $tag; copy $pinnedWrapper over $PSCommandPath, unless you changed it on purpose."
+    }
+}

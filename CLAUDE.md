@@ -57,7 +57,7 @@ Read [docs/architecture.md](docs/architecture.md) first: the pipeline a run goes
 Entry points:
 
 - `build.ps1`: checks are commands run from the root whose output is never captured (results go through a `[ref]`, so a terminal keeps their colors; a check that throws fails alone); tools are scripts run with `Parameters` splatted by name (`-WhatIf` for the ones that write to GitHub). `./build.ps1 all` runs every check without stopping and exits non-zero after a summary. `tests/Build.Tests.ps1` checks `build.psd1` against `ci.yml`, `tools/`, `dev-tools.psd1` and `.vscode/tasks.json`.
-- `engine/examples/run.ps1`: the wrapper a config repository copies; `engine.psd1` pins `{Repository; Tag; Commit}`, the tag must point at the commit, `.engine/` is reused at that commit and replaced otherwise; tested with git mocked in `engine/tests/RunWrapper.Tests.ps1`.
+- `engine/examples/run.ps1`: the wrapper a config repository copies; `engine.psd1` pins `{Repository; Tag; Commit}`, the tag must point at the commit, `.engine/` is reused at that commit and replaced otherwise, a modified `.engine/` stops the run, and a copy that differs from the pinned engine's `engine/examples/run.ps1` (line endings, final newlines and a signature block apart) warns after the engine ran; tested with git mocked in `engine/tests/RunWrapper.Tests.ps1`.
 
 The engine:
 
