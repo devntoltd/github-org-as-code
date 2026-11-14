@@ -196,6 +196,23 @@ Describe 'Install-DevTools.ps1' {
         $mode.HasFlag([System.IO.UnixFileMode]::UserExecute) | Should -BeTrue
     }
 
+    It 'installs into a relative -ToolsPath below the PowerShell location, as one full path throughout' {
+        # .NET calls (the executable bit on Linux and macOS) resolve a relative path against the process, not the location.
+        $location = (New-Item -ItemType Directory -Path (Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid()))).FullName
+        Push-Location -LiteralPath $location
+        try {
+            & $script:installScript -ToolsPath 'tools/bin' -Platform 'linux-x64'
+        }
+        finally {
+            Pop-Location
+        }
+
+        $full = Join-Path -Path $location -ChildPath 'tools/bin'
+        Get-Content -Raw -Path (Join-Path -Path $full -ChildPath 'sample') | Should -Be 'sample 1.0.0 for linux'
+        Test-Path -LiteralPath (Join-Path -Path $full -ChildPath 'sample.pinned') | Should -BeTrue
+        Should -Invoke Write-Host -ParameterFilter { $Object -eq "sample 1.0.0 installed into $([System.IO.Path]::GetFullPath($full))" }
+    }
+
     It 'installs again when the stamp is of another pin' {
         Write-TestInstalled -Stamp "0.9.0 $('d' * 64)"
 

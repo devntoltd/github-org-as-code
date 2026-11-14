@@ -32,6 +32,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Path $PSScriptRoot -Parent
+# One full path throughout: the cmdlets resolve a relative one against the PowerShell location, the .NET calls (the
+# executable bit) against the process. It need not exist yet.
+$ToolsPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsPath)
 
 # The platform this runs on, as dev-tools.psd1 names them: <os>-<architecture>.
 function Get-DevToolPlatform {
