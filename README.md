@@ -1,6 +1,7 @@
 # github-org-bootstrap
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/devntoltd/github-org-bootstrap/badge)](https://scorecard.dev/viewer/?uri=github.com/devntoltd/github-org-bootstrap)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16698/badge)](https://www.bestpractices.dev/projects/16698)
 
 Settings of a GitHub organization as a reviewable config: a PowerShell tool reads the organization, plans the
 difference from your config, asks once, and applies only what the config says. Published by
