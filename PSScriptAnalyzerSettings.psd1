@@ -9,8 +9,9 @@
 
     # Off by default and left off:
     # - PSAvoidLongLines: about 1000 lines over 120 characters, mostly test data and messages that are kept whole.
-    # - PSUseConstrainedLanguageMode: the scripts run in FullLanguage only (Az and gh need it).
-    # - PSUseCompatibleSyntax/Commands/Types: every bootstrap.ps1 requires PowerShell 7.6, and the analyzer's
+    # - PSUseConstrainedLanguageMode: the scripts run in FullLanguage only (they use .NET types such as
+    #   HttpRequestException, which ConstrainedLanguage blocks).
+    # - PSUseCompatibleSyntax/Commands/Types: engine/bootstrap.ps1 requires PowerShell 7.6, and the analyzer's
     #   compatibility profiles stop at 7.0; CI runs on Linux, so a Windows-only command fails the tests there.
     Rules        = @{
         # The formatting rules of the CodeFormattingStroustrup preset with its options, so CI, the Lint task and
