@@ -1222,8 +1222,8 @@
                 },
                 "secret_scanning": {
                   "type": "string",
-                  "markdownDescription": "Recommended: `\"not_set\"`. Needs a paid Secret Protection license for private and internal repositories; enable it when the organization has one.",
-                  "default": "not_set",
+                  "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Secret Protection license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
+                  "default": "disabled",
                   "enum": [
                     "enabled",
                     "disabled",
@@ -1232,8 +1232,8 @@
                 },
                 "secret_scanning_push_protection": {
                   "type": "string",
-                  "markdownDescription": "Recommended: `\"not_set\"`. Needs a paid Secret Protection license for private and internal repositories; enable it when the organization has one.",
-                  "default": "not_set",
+                  "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Secret Protection license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
+                  "default": "disabled",
                   "enum": [
                     "enabled",
                     "disabled",
@@ -1242,8 +1242,8 @@
                 },
                 "code_scanning_default_setup": {
                   "type": "string",
-                  "markdownDescription": "Recommended: `\"not_set\"`. Needs a paid Code Security license for private and internal repositories; enable it when the organization has one.",
-                  "default": "not_set",
+                  "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Code Security license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
+                  "default": "disabled",
                   "enum": [
                     "enabled",
                     "disabled",

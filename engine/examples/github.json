@@ -148,9 +148,9 @@
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
-        "secret_scanning": "not_set",
-        "secret_scanning_push_protection": "not_set",
-        "code_scanning_default_setup": "not_set"
+        "secret_scanning": "disabled",
+        "secret_scanning_push_protection": "disabled",
+        "code_scanning_default_setup": "disabled"
       }
     },
     "public": {

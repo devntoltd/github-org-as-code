@@ -52,7 +52,7 @@ function Get-CodeSecuritySettingRow {
                 @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = "Free for public repositories: $($feature.Feature)." }
             }
             else {
-                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'not_set'; Why = "Needs a paid $($feature.License) license for private and internal repositories; enable it when the organization has one." }
+                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'disabled'; Why = "Needs a paid $($feature.License) license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one." }
             }
         }
     }

@@ -244,7 +244,7 @@ Describe 'Setting catalog: UI metadata of the page walk' {
         }
 
         $rows.Public.Recommended | Should -Be 'enabled'
-        $rows.Private.Recommended | Should -Be 'not_set'
+        $rows.Private.Recommended | Should -Be 'disabled'
     }
 
     It 'gives the code security page its area' {

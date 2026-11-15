@@ -155,9 +155,9 @@ function Get-TestGitHubOrgConfig {
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
-        "secret_scanning": "not_set",
-        "secret_scanning_push_protection": "not_set",
-        "code_scanning_default_setup": "not_set"
+        "secret_scanning": "disabled",
+        "secret_scanning_push_protection": "disabled",
+        "code_scanning_default_setup": "disabled"
       }
     },
     "public": {
@@ -595,7 +595,7 @@ function Get-TestCodeSecurityConfiguration {
         [string]$TargetType = 'organization',
         [string]$State = 'enabled',
         # Secret scanning, push protection and code scanning default setup: enabled in the public configuration.
-        [string]$Paid = 'not_set',
+        [string]$Paid = 'disabled',
         [string]$Description = 'Free features'
     )
     [pscustomobject]@{
@@ -677,7 +677,7 @@ function Get-MatchingTestCodeSecurityState {
                 Name        = 'baseline'
                 Description = 'Free features'
                 Enforcement = 'enforced'
-                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'not_set'; secret_scanning_push_protection = 'not_set'; code_scanning_default_setup = 'not_set' }
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'disabled'; secret_scanning_push_protection = 'disabled'; code_scanning_default_setup = 'disabled' }
             }
             Default       = 'private_and_internal'
         }

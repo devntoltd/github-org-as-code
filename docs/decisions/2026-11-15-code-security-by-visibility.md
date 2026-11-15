@@ -25,8 +25,8 @@ secret scanning. This decision gives the engine two configurations, one per visi
 - **Settings:** both sections have the same rows: the existing `dependency_graph`, `dependabot_alerts`,
   `dependabot_security_updates`, `private_vulnerability_reporting`, and new `secret_scanning`,
   `secret_scanning_push_protection` and `code_scanning_default_setup` (`enabled`, `disabled`, `not_set`). Only the
-  recommendations differ: `enabled` for the new rows in `public` (free there), `not_set` in `private` (paid there; an
-  organization with the licenses enables them without a new format). The existing rows keep their recommendations in
+  recommendations differ: `enabled` for the new rows in `public` (free there), `disabled` in `private` (paid there,
+  and kept off explicitly; an organization with the licenses enables them without a new format). The existing rows keep their recommendations in
   both.
 - **Names:** the two `name`s must differ, compared without case (GitHub keeps configuration names unique whatever
   their case); a config error otherwise. Each is matched exactly against the organization configurations, with the
