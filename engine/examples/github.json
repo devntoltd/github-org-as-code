@@ -148,10 +148,9 @@
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
-        "secret_protection": "disabled",
+        "advanced_security": "disabled",
         "secret_scanning": "disabled",
         "secret_scanning_push_protection": "disabled",
-        "code_security": "disabled",
         "code_scanning_default_setup": "disabled"
       }
     },
@@ -164,10 +163,9 @@
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
-        "secret_protection": "enabled",
+        "advanced_security": "enabled",
         "secret_scanning": "enabled",
         "secret_scanning_push_protection": "enabled",
-        "code_security": "enabled",
         "code_scanning_default_setup": "enabled"
       }
     }

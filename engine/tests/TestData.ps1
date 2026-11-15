@@ -155,10 +155,9 @@ function Get-TestGitHubOrgConfig {
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
-        "secret_protection": "disabled",
+        "advanced_security": "disabled",
         "secret_scanning": "disabled",
         "secret_scanning_push_protection": "disabled",
-        "code_security": "disabled",
         "code_scanning_default_setup": "disabled"
       }
     },
@@ -171,10 +170,9 @@ function Get-TestGitHubOrgConfig {
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
-        "secret_protection": "enabled",
+        "advanced_security": "enabled",
         "secret_scanning": "enabled",
         "secret_scanning_push_protection": "enabled",
-        "code_security": "enabled",
         "code_scanning_default_setup": "enabled"
       }
     }
@@ -605,8 +603,9 @@ function Get-TestCodeSecurityConfiguration {
     [pscustomobject]@{
         id = $Id; name = $Name; target_type = $TargetType; description = $Description
         dependency_graph = $State; dependabot_alerts = $State; dependabot_security_updates = $State; private_vulnerability_reporting = $State
-        secret_protection = $Paid; secret_scanning = $Paid; secret_scanning_push_protection = $Paid; code_security = $Paid; code_scanning_default_setup = $Paid
-        advanced_security = 'disabled'; enforcement = 'enforced'
+        # GitHub answers advanced_security, never the secret_protection and code_security it accepts in a write.
+        advanced_security = $Paid; secret_scanning = $Paid; secret_scanning_push_protection = $Paid; code_scanning_default_setup = $Paid
+        enforcement = 'enforced'
     }
 }
 
@@ -681,7 +680,7 @@ function Get-MatchingTestCodeSecurityState {
                 Name        = 'baseline'
                 Description = 'Free features'
                 Enforcement = 'enforced'
-                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_protection = 'disabled'; secret_scanning = 'disabled'; secret_scanning_push_protection = 'disabled'; code_security = 'disabled'; code_scanning_default_setup = 'disabled' }
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; advanced_security = 'disabled'; secret_scanning = 'disabled'; secret_scanning_push_protection = 'disabled'; code_scanning_default_setup = 'disabled' }
             }
             Default       = 'private_and_internal'
         }
@@ -691,7 +690,7 @@ function Get-MatchingTestCodeSecurityState {
                 Name        = 'public-baseline'
                 Description = 'Free features of public repositories'
                 Enforcement = 'enforced'
-                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_protection = 'enabled'; secret_scanning = 'enabled'; secret_scanning_push_protection = 'enabled'; code_security = 'enabled'; code_scanning_default_setup = 'enabled' }
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; advanced_security = 'enabled'; secret_scanning = 'enabled'; secret_scanning_push_protection = 'enabled'; code_scanning_default_setup = 'enabled' }
             }
             Default       = 'public'
         }
@@ -1129,13 +1128,14 @@ function Register-TestGitHubOrgFake {
             param($Store, $Request)
             $key = "orgs/$($Request.Match.org)/code-security/configurations"
             $configurations = @($Store[$key])
-            # GitHub's defaults for what the request leaves out.
+            # GitHub's defaults for what the request leaves out. It accepts secret_protection and code_security but
+            # answers only advanced_security, so the fake keeps neither.
             $created = [pscustomobject]@{
                 id = 1 + [long](($configurations | Measure-Object -Property id -Maximum).Maximum); target_type = 'organization'
                 description = ''; enforcement = 'enforced'; advanced_security = 'disabled'
                 dependency_graph = 'enabled'; dependabot_alerts = 'disabled'; dependabot_security_updates = 'disabled'; private_vulnerability_reporting = 'disabled'
             }
-            foreach ($property in $Request.Body.PSObject.Properties) {
+            foreach ($property in @($Request.Body.PSObject.Properties | Where-Object { $_.Name -notin 'secret_protection', 'code_security' })) {
                 $created | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force
             }
             $Store[$key] = [object[]]($configurations + $created)
@@ -1147,7 +1147,7 @@ function Register-TestGitHubOrgFake {
             if (-not $configuration) {
                 return Get-TestGhFakeError -Message "gh: Not Found (HTTP 404): $($Request.Endpoint)"
             }
-            foreach ($property in $Request.Body.PSObject.Properties) {
+            foreach ($property in @($Request.Body.PSObject.Properties | Where-Object { $_.Name -notin 'secret_protection', 'code_security' })) {
                 $configuration | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force
             }
             $configuration

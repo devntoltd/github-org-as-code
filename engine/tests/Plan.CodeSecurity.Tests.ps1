@@ -32,13 +32,12 @@ Describe 'Get-GitHubOrgPlan: code security' {
             'orgs/contoso/code-security/configurations/{configuration_id}/attach'
         )
         $plan[3].Body.secret_scanning | Should -Be 'enabled'
-        $plan[3].Body.code_security | Should -Be 'enabled'
-        $plan[3].Body.secret_protection | Should -Be 'enabled'
+        $plan[3].Body.advanced_security | Should -Be 'enabled'
         $plan[3].Body.enforcement | Should -Be 'enforced'
         $plan[4].Body.default_for_new_repos | Should -Be 'public'
-        (@($plan[0].Body.Keys) -join ',') | Should -Be 'name,enforcement,description,dependency_graph,dependabot_alerts,dependabot_security_updates,private_vulnerability_reporting,secret_protection,secret_scanning,secret_scanning_push_protection,code_security,code_scanning_default_setup'
+        (@($plan[0].Body.Keys) -join ',') | Should -Be 'name,enforcement,description,dependency_graph,dependabot_alerts,dependabot_security_updates,private_vulnerability_reporting,advanced_security,secret_scanning,secret_scanning_push_protection,code_scanning_default_setup'
         $plan[0].Body.enforcement | Should -Be 'unenforced'
-        $plan[0].Summary | Should -Be "+ create code security configuration 'baseline' (unenforced): dependency_graph: enabled, dependabot_alerts: enabled, dependabot_security_updates: enabled, private_vulnerability_reporting: enabled, secret_protection: disabled, secret_scanning: disabled, secret_scanning_push_protection: disabled, code_security: disabled, code_scanning_default_setup: disabled"
+        $plan[0].Summary | Should -Be "+ create code security configuration 'baseline' (unenforced): dependency_graph: enabled, dependabot_alerts: enabled, dependabot_security_updates: enabled, private_vulnerability_reporting: enabled, advanced_security: disabled, secret_scanning: disabled, secret_scanning_push_protection: disabled, code_scanning_default_setup: disabled"
         $plan[1].Body.default_for_new_repos | Should -Be 'private_and_internal'
         $plan[1].Summary | Should -Be "~ make code security configuration 'baseline' the default for new repositories: <none> -> private_and_internal"
         $plan[2].Body.scope | Should -Be 'selected'

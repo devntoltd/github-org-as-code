@@ -474,10 +474,9 @@ Managed by the area `codeSecurity` of the engine (see the [engine reference](REA
 | dependabot_alerts | `codeSecurity.private.settings.dependabot_alerts` | `enabled` | apply | by area | - | by the engine |
 | dependabot_security_updates | `codeSecurity.private.settings.dependabot_security_updates` | `enabled` | apply | by area | - | by the engine |
 | private_vulnerability_reporting | `codeSecurity.private.settings.private_vulnerability_reporting` | `enabled` | apply | by area | - | by the engine |
-| secret_protection | `codeSecurity.private.settings.secret_protection` | `disabled` | apply | by area | - | by the engine |
+| advanced_security | `codeSecurity.private.settings.advanced_security` | `disabled` | apply | by area | - | by the engine |
 | secret_scanning | `codeSecurity.private.settings.secret_scanning` | `disabled` | apply | by area | - | by the engine |
 | secret_scanning_push_protection | `codeSecurity.private.settings.secret_scanning_push_protection` | `disabled` | apply | by area | - | by the engine |
-| code_security | `codeSecurity.private.settings.code_security` | `disabled` | apply | by area | - | by the engine |
 | code_scanning_default_setup | `codeSecurity.private.settings.code_scanning_default_setup` | `disabled` | apply | by area | - | by the engine |
 | name | `codeSecurity.public.name` | - | apply | by area | - | by the engine |
 | description | `codeSecurity.public.description` | - | apply | by area | - | by the engine |
@@ -486,10 +485,9 @@ Managed by the area `codeSecurity` of the engine (see the [engine reference](REA
 | dependabot_alerts | `codeSecurity.public.settings.dependabot_alerts` | `enabled` | apply | by area | - | by the engine |
 | dependabot_security_updates | `codeSecurity.public.settings.dependabot_security_updates` | `enabled` | apply | by area | - | by the engine |
 | private_vulnerability_reporting | `codeSecurity.public.settings.private_vulnerability_reporting` | `enabled` | apply | by area | - | by the engine |
-| secret_protection | `codeSecurity.public.settings.secret_protection` | `enabled` | apply | by area | - | by the engine |
+| advanced_security | `codeSecurity.public.settings.advanced_security` | `enabled` | apply | by area | - | by the engine |
 | secret_scanning | `codeSecurity.public.settings.secret_scanning` | `enabled` | apply | by area | - | by the engine |
 | secret_scanning_push_protection | `codeSecurity.public.settings.secret_scanning_push_protection` | `enabled` | apply | by area | - | by the engine |
-| code_security | `codeSecurity.public.settings.code_security` | `enabled` | apply | by area | - | by the engine |
 | code_scanning_default_setup | `codeSecurity.public.settings.code_scanning_default_setup` | `enabled` | apply | by area | - | by the engine |
 
 ### Deploy keys (`deploy_keys`)

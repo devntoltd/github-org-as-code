@@ -27,7 +27,7 @@ Describe 'Get-GitHubOrgState: code security' {
         $codeSecurity.Private.Configuration.Description | Should -Be 'Free features'
         $codeSecurity.Private.Configuration.Enforcement | Should -Be 'enforced'
         $codeSecurity.Private.Configuration.Settings.dependabot_alerts | Should -Be 'enabled'
-        $codeSecurity.Private.Configuration.Settings.Contains('advanced_security') | Should -BeFalse
+        $codeSecurity.Private.Configuration.Settings.Contains('enforcement') | Should -BeFalse
         $codeSecurity.Public.Configuration | Should -BeNullOrEmpty
     }
 

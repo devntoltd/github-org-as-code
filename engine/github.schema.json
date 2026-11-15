@@ -1220,14 +1220,13 @@
                     "not_set"
                   ]
                 },
-                "secret_protection": {
+                "advanced_security": {
                   "type": "string",
-                  "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Secret Protection license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
+                  "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Secret Protection or Code Security license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
                   "default": "disabled",
                   "enum": [
                     "enabled",
-                    "disabled",
-                    "not_set"
+                    "disabled"
                   ]
                 },
                 "secret_scanning": {
@@ -1243,16 +1242,6 @@
                 "secret_scanning_push_protection": {
                   "type": "string",
                   "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Secret Protection license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
-                  "default": "disabled",
-                  "enum": [
-                    "enabled",
-                    "disabled",
-                    "not_set"
-                  ]
-                },
-                "code_security": {
-                  "type": "string",
-                  "markdownDescription": "Recommended: `\"disabled\"`. Needs a paid Code Security license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one.",
                   "default": "disabled",
                   "enum": [
                     "enabled",
@@ -1276,10 +1265,9 @@
                 "dependabot_alerts",
                 "dependabot_security_updates",
                 "private_vulnerability_reporting",
-                "secret_protection",
+                "advanced_security",
                 "secret_scanning",
                 "secret_scanning_push_protection",
-                "code_security",
                 "code_scanning_default_setup"
               ],
               "additionalProperties": false
@@ -1360,14 +1348,13 @@
                     "not_set"
                   ]
                 },
-                "secret_protection": {
+                "advanced_security": {
                   "type": "string",
-                  "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: the Secret Protection product, which its features need.",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: the Secret Protection and Code Security products, which the features below need.",
                   "default": "enabled",
                   "enum": [
                     "enabled",
-                    "disabled",
-                    "not_set"
+                    "disabled"
                   ]
                 },
                 "secret_scanning": {
@@ -1383,16 +1370,6 @@
                 "secret_scanning_push_protection": {
                   "type": "string",
                   "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: push protection blocks a push that contains a secret.",
-                  "default": "enabled",
-                  "enum": [
-                    "enabled",
-                    "disabled",
-                    "not_set"
-                  ]
-                },
-                "code_security": {
-                  "type": "string",
-                  "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: the Code Security product, which its features need.",
                   "default": "enabled",
                   "enum": [
                     "enabled",
@@ -1416,10 +1393,9 @@
                 "dependabot_alerts",
                 "dependabot_security_updates",
                 "private_vulnerability_reporting",
-                "secret_protection",
+                "advanced_security",
                 "secret_scanning",
                 "secret_scanning_push_protection",
-                "code_security",
                 "code_scanning_default_setup"
               ],
               "additionalProperties": false
@@ -2038,20 +2014,18 @@
               "codeSecurity.private.settings.dependabot_alerts",
               "codeSecurity.private.settings.dependabot_security_updates",
               "codeSecurity.private.settings.private_vulnerability_reporting",
-              "codeSecurity.private.settings.secret_protection",
+              "codeSecurity.private.settings.advanced_security",
               "codeSecurity.private.settings.secret_scanning",
               "codeSecurity.private.settings.secret_scanning_push_protection",
-              "codeSecurity.private.settings.code_security",
               "codeSecurity.private.settings.code_scanning_default_setup",
               "codeSecurity.public.enforcement",
               "codeSecurity.public.settings.dependency_graph",
               "codeSecurity.public.settings.dependabot_alerts",
               "codeSecurity.public.settings.dependabot_security_updates",
               "codeSecurity.public.settings.private_vulnerability_reporting",
-              "codeSecurity.public.settings.secret_protection",
+              "codeSecurity.public.settings.advanced_security",
               "codeSecurity.public.settings.secret_scanning",
               "codeSecurity.public.settings.secret_scanning_push_protection",
-              "codeSecurity.public.settings.code_security",
               "codeSecurity.public.settings.code_scanning_default_setup",
               "ruleset.enforcement",
               "ruleset.bypass.organizationAdmin",

@@ -30,12 +30,13 @@ $script:CodeSecurityVisibilities = [ordered]@{
 function Get-CodeSecuritySettingRow {
     # The rows of codeSecurity.private and codeSecurity.public: the same fields, recommended apart where a feature is
     # free only for public repositories.
-    # GitHub turns a feature on only with its product (HTTP 400 otherwise): Test-CodeSecurityProduct checks the pairs.
+    # GitHub turns a feature on only with its product (HTTP 400 otherwise): Test-CodeSecurityProduct checks it. The
+    # products are advanced_security, the one field GitHub answers for them: it accepts secret_protection and
+    # code_security in a write but never returns them, so a row of either would be planned again on every run.
     $features = @(
-        @{ Field = 'secret_protection'; Feature = 'the Secret Protection product, which its features need'; License = 'Secret Protection' }
+        @{ Field = 'advanced_security'; Feature = 'the Secret Protection and Code Security products, which the features below need'; License = 'Secret Protection or Code Security' }
         @{ Field = 'secret_scanning'; Feature = 'secret scanning'; License = 'Secret Protection' }
         @{ Field = 'secret_scanning_push_protection'; Feature = 'push protection blocks a push that contains a secret'; License = 'Secret Protection' }
-        @{ Field = 'code_security'; Feature = 'the Code Security product, which its features need'; License = 'Code Security' }
         @{ Field = 'code_scanning_default_setup'; Feature = 'CodeQL default setup scans the code'; License = 'Code Security' }
     )
     $states = @('enabled', 'disabled', 'not_set')
@@ -51,11 +52,13 @@ function Get-CodeSecuritySettingRow {
         $reporting = if ($key -eq 'public') { 'A researcher can report a vulnerability of a public repository privately instead of in a public issue.' } else { 'GitHub offers it on public repositories only; enabled here, a private repository made public later has it from the start.' }
         @{ Section = "$section.settings"; Field = 'private_vulnerability_reporting'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = $reporting }
         foreach ($feature in $features) {
+            # advanced_security takes enabled or disabled; its other values are deprecated.
+            $values = if ($feature.Field -eq 'advanced_security') { @('enabled', 'disabled') } else { $states }
             if ($key -eq 'public') {
-                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = "Free for public repositories: $($feature.Feature)." }
+                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $values; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = "Free for public repositories: $($feature.Feature)." }
             }
             else {
-                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'disabled'; Why = "Needs a paid $($feature.License) license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one." }
+                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $values; Mode = 'apply'; Page = 'security_products'; Recommended = 'disabled'; Why = "Needs a paid $($feature.License) license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one." }
             }
         }
     }
@@ -498,11 +501,11 @@ function Test-GitHubOrgConfig {
     return $result.ToArray()
 }
 
-# Feature -> the product a code security configuration must turn on with it.
+# Feature -> the field of the product a code security configuration must turn on with it.
 $script:CodeSecurityProducts = [ordered]@{
-    secret_scanning                 = 'secret_protection'
-    secret_scanning_push_protection = 'secret_protection'
-    code_scanning_default_setup     = 'code_security'
+    secret_scanning                 = 'advanced_security'
+    secret_scanning_push_protection = 'advanced_security'
+    code_scanning_default_setup     = 'advanced_security'
 }
 
 function Test-CodeSecurityProduct {
@@ -515,7 +518,7 @@ function Test-CodeSecurityProduct {
         foreach ($feature in $script:CodeSecurityProducts.Keys) {
             $product = $script:CodeSecurityProducts[$feature]
             if ($settings.$feature -ceq 'enabled' -and $settings.$product -cne 'enabled') {
-                "codeSecurity.$key.settings.$feature is enabled, so codeSecurity.$key.settings.$product must be enabled too: GitHub rejects a configuration that turns on a feature of a product it does not turn on."
+                "codeSecurity.$key.settings.$feature is enabled, so codeSecurity.$key.settings.$product must be enabled too: GitHub turns on a feature of Code Security or Secret Protection only with the products."
             }
         }
     }
