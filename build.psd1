@@ -10,7 +10,7 @@
         @{ Name = 'markdownlint'; Description = 'Markdown lint'; Command = 'npx'; Arguments = @('--yes', 'markdownlint-cli2@0.23.3'); Install = 'Node.js'; CiStep = 'Markdown lint' }
         @{ Name = 'links'; Description = 'Links and anchors between the docs'; Command = 'lychee'; Arguments = @('--offline', '--include-fragments', '--no-progress', '--exclude-path=decisions.\d{4}-', './**/*.md'); CiStep = 'Markdown links' }
         @{ Name = 'shellcheck'; Description = 'The pre-commit hook'; Command = 'shellcheck'; Arguments = @('.githooks/pre-commit'); CiStep = 'shellcheck' }
-        @{ Name = 'actionlint'; Description = 'Workflow correctness'; Command = 'actionlint'; Arguments = @('.github/workflows/ci.yml', '.github/workflows/codeql.yml', '.github/workflows/recurring.yml', '.github/workflows/scorecard.yml', 'engine/examples/org-checks.yml'); CiStep = 'actionlint' }
+        @{ Name = 'actionlint'; Description = 'Workflow correctness'; Command = 'actionlint'; Arguments = @('.github/workflows/ci.yml', '.github/workflows/recurring.yml', '.github/workflows/scorecard.yml', 'engine/examples/org-checks.yml'); CiStep = 'actionlint' }
         @{ Name = 'zizmor'; Description = 'Workflow security, online audits'; Command = 'zizmor'; Arguments = @('--persona=pedantic', '.', 'engine/examples/org-checks.yml'); GitHubToken = $true; CiStep = 'zizmor' }
         @{ Name = 'secrets'; Description = 'Betterleaks over the full git history'; Command = 'betterleaks'; Arguments = @('git', '--redact', '--verbose', '--no-banner', '.'); CiStep = 'Betterleaks' }
         @{ Name = 'tests'; Description = 'All tests with coverage'; Command = 'pwsh'; Arguments = @('-NoProfile', '-File', 'tools/Invoke-Coverage.ps1'); CiStep = 'Test and coverage' }
