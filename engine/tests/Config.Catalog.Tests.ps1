@@ -233,7 +233,7 @@ Describe 'Setting catalog: UI metadata of the page walk' {
         $bad | Should -BeNullOrEmpty
     }
 
-    It 'recommends <_> only for public repositories, where it is free' -ForEach @('secret_scanning', 'secret_scanning_push_protection', 'code_scanning_default_setup') {
+    It 'recommends <_> only for public repositories, where it is free' -ForEach @('secret_protection', 'secret_scanning', 'secret_scanning_push_protection', 'code_security', 'code_scanning_default_setup') {
         $field = $_
         $rows = InModuleScope GitHubOrg -Parameters @{ Field = $field } {
             param($Field)

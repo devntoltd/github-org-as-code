@@ -229,6 +229,21 @@ Describe 'Test-GitHubOrgConfig' {
         $errors.Count | Should -Be 5
     }
 
+    It 'requires the Code Security product for code scanning default setup' {
+        $config = Get-TestGitHubOrgConfig
+        $config.codeSecurity.public.settings.code_security = 'disabled'
+
+        Test-GitHubOrgConfig -Config $config |
+            Should -Be 'codeSecurity.public.settings.code_scanning_default_setup is enabled, so codeSecurity.public.settings.code_security must be enabled too: GitHub rejects a configuration that turns on a feature of a product it does not turn on.'
+    }
+
+    It 'requires the Secret Protection product for <_>' -ForEach @('secret_scanning', 'secret_scanning_push_protection') {
+        $config = Get-TestGitHubOrgConfig
+        $config.codeSecurity.private.settings.$_ = 'enabled'
+
+        Test-GitHubOrgConfig -Config $config | Should -BeLike "codeSecurity.private.settings.$_ is enabled, so codeSecurity.private.settings.secret_protection must be enabled too: *"
+    }
+
     It 'rejects two code security names that differ only in case' {
         $config = Get-TestGitHubOrgConfig
         $config.codeSecurity.public.name = 'Baseline'
@@ -513,7 +528,7 @@ Describe 'Test-GitHubOrgConfig' {
         $fields | Should -Contain 'ruleset.rules.pullRequest.requiredReviewers'
         $fields | Should -Contain 'ruleset.rules.copilotCodeReview.enabled'
         $fields | Should -Contain 'copilot.policies.cli_billed_to_organization'
-        $fields.Count | Should -Be 122
+        $fields.Count | Should -Be 126
     }
 
     It 'recommends the values of the complete test config' {

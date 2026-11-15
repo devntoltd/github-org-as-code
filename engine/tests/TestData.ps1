@@ -155,8 +155,10 @@ function Get-TestGitHubOrgConfig {
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
+        "secret_protection": "disabled",
         "secret_scanning": "disabled",
         "secret_scanning_push_protection": "disabled",
+        "code_security": "disabled",
         "code_scanning_default_setup": "disabled"
       }
     },
@@ -169,8 +171,10 @@ function Get-TestGitHubOrgConfig {
         "dependabot_alerts": "enabled",
         "dependabot_security_updates": "enabled",
         "private_vulnerability_reporting": "enabled",
+        "secret_protection": "enabled",
         "secret_scanning": "enabled",
         "secret_scanning_push_protection": "enabled",
+        "code_security": "enabled",
         "code_scanning_default_setup": "enabled"
       }
     }
@@ -601,7 +605,7 @@ function Get-TestCodeSecurityConfiguration {
     [pscustomobject]@{
         id = $Id; name = $Name; target_type = $TargetType; description = $Description
         dependency_graph = $State; dependabot_alerts = $State; dependabot_security_updates = $State; private_vulnerability_reporting = $State
-        secret_scanning = $Paid; secret_scanning_push_protection = $Paid; code_scanning_default_setup = $Paid
+        secret_protection = $Paid; secret_scanning = $Paid; secret_scanning_push_protection = $Paid; code_security = $Paid; code_scanning_default_setup = $Paid
         advanced_security = 'disabled'; enforcement = 'enforced'
     }
 }
@@ -677,7 +681,7 @@ function Get-MatchingTestCodeSecurityState {
                 Name        = 'baseline'
                 Description = 'Free features'
                 Enforcement = 'enforced'
-                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'disabled'; secret_scanning_push_protection = 'disabled'; code_scanning_default_setup = 'disabled' }
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_protection = 'disabled'; secret_scanning = 'disabled'; secret_scanning_push_protection = 'disabled'; code_security = 'disabled'; code_scanning_default_setup = 'disabled' }
             }
             Default       = 'private_and_internal'
         }
@@ -687,7 +691,7 @@ function Get-MatchingTestCodeSecurityState {
                 Name        = 'public-baseline'
                 Description = 'Free features of public repositories'
                 Enforcement = 'enforced'
-                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'enabled'; secret_scanning_push_protection = 'enabled'; code_scanning_default_setup = 'enabled' }
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_protection = 'enabled'; secret_scanning = 'enabled'; secret_scanning_push_protection = 'enabled'; code_security = 'enabled'; code_scanning_default_setup = 'enabled' }
             }
             Default       = 'public'
         }

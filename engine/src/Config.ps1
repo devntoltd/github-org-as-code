@@ -30,9 +30,12 @@ $script:CodeSecurityVisibilities = [ordered]@{
 function Get-CodeSecuritySettingRow {
     # The rows of codeSecurity.private and codeSecurity.public: the same fields, recommended apart where a feature is
     # free only for public repositories.
+    # GitHub turns a feature on only with its product (HTTP 400 otherwise): Test-CodeSecurityProduct checks the pairs.
     $features = @(
+        @{ Field = 'secret_protection'; Feature = 'the Secret Protection product, which its features need'; License = 'Secret Protection' }
         @{ Field = 'secret_scanning'; Feature = 'secret scanning'; License = 'Secret Protection' }
         @{ Field = 'secret_scanning_push_protection'; Feature = 'push protection blocks a push that contains a secret'; License = 'Secret Protection' }
+        @{ Field = 'code_security'; Feature = 'the Code Security product, which its features need'; License = 'Code Security' }
         @{ Field = 'code_scanning_default_setup'; Feature = 'CodeQL default setup scans the code'; License = 'Code Security' }
     )
     $states = @('enabled', 'disabled', 'not_set')
@@ -489,9 +492,33 @@ function Test-GitHubOrgConfig {
     if ($private -eq $public) {
         $result.Add("codeSecurity.public.name '$public' and codeSecurity.private.name '$private' are the same name when case is ignored; GitHub keeps configuration names unique whatever their case, so give the two configurations different names.")
     }
+    $result.AddRange([string[]]@(Test-CodeSecurityProduct -Config $Config))
     $result.AddRange([string[]]@(Test-ExceptionList -Exceptions @($Config.exceptions) -Shape $shape -Today $Today))
     $result.AddRange([string[]]@((Get-WorkflowReviewerReport -Config $Config -Today $Today).NotWaived))
     return $result.ToArray()
+}
+
+# Feature -> the product a code security configuration must turn on with it.
+$script:CodeSecurityProducts = [ordered]@{
+    secret_scanning                 = 'secret_protection'
+    secret_scanning_push_protection = 'secret_protection'
+    code_scanning_default_setup     = 'code_security'
+}
+
+function Test-CodeSecurityProduct {
+    # GitHub answers 400 to a configuration that turns on a feature but not its product ("advanced_security or
+    # code_security must be set to enabled when any Code Security features are enabled"), after the confirmation.
+    param([Parameter(Mandatory)][object]$Config)
+
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        $settings = $Config.codeSecurity.$key.settings
+        foreach ($feature in $script:CodeSecurityProducts.Keys) {
+            $product = $script:CodeSecurityProducts[$feature]
+            if ($settings.$feature -ceq 'enabled' -and $settings.$product -cne 'enabled') {
+                "codeSecurity.$key.settings.$feature is enabled, so codeSecurity.$key.settings.$product must be enabled too: GitHub rejects a configuration that turns on a feature of a product it does not turn on."
+            }
+        }
+    }
 }
 
 function Get-WorkflowReviewerReport {

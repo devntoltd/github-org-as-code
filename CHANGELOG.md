@@ -13,7 +13,8 @@ release unchanged.
 - `configVersion` `2.0`: move the fields of `codeSecurity` into `codeSecurity.private` and drop
   `default_for_new_repos` (the engine makes that configuration the default for new private and internal
   repositories); add `codeSecurity.public` with `name`, `description`, `enforcement` and `settings`, and the
-  `settings` `secret_scanning`, `secret_scanning_push_protection` and `code_scanning_default_setup` to both sections,
+  `settings` `secret_protection`, `secret_scanning`, `secret_scanning_push_protection`, `code_security` and
+  `code_scanning_default_setup` to both sections (a feature `enabled` needs its product `enabled`),
   as in `engine/examples/github.json`. The two names must differ, also ignoring case.
 
 ### Changed
