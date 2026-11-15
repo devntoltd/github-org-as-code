@@ -8,6 +8,11 @@ release unchanged.
 
 ## [Unreleased]
 
+### Changed
+
+- The description of `actions.selected.patterns_allowed` in the schema gives `example-owner/example-action@*` as its
+  example instead of a real vendor's action.
+
 ## [2.0.0] - 2026-11-15
 
 ### Config format

@@ -134,7 +134,7 @@ Describe 'Round trip on a fake GitHub API' {
 
     It 'updates a drifted selection and code security configuration, then plans nothing' {
         $resource = Get-MatchingTestGitHubOrgResource
-        $resource['orgs/contoso/actions/permissions/selected-actions'] = @{ github_owned_allowed = $true; verified_allowed = $true; patterns_allowed = @('octo-org/login-action@*', 'evil/action@*') }
+        $resource['orgs/contoso/actions/permissions/selected-actions'] = @{ github_owned_allowed = $true; verified_allowed = $true; patterns_allowed = @('octo-tools/login-action@*', 'evil/action@*') }
         $resource['orgs/contoso/code-security/configurations'][1] = Get-TestCodeSecurityConfiguration -Id 42 -State 'disabled'
         $resource['orgs/contoso/code-security/configurations/defaults'] = @()
         $resource['repos/contoso/repo-b/code-security-configuration'] = $null
@@ -175,7 +175,7 @@ Describe 'Round trip on a fake GitHub API' {
     It 'plans nothing after applying, on a fake that drops what a PUT does not send' {
         $resource = Get-MatchingTestGitHubOrgResource
         $resource['orgs/contoso/actions/permissions/workflow'] = @{ default_workflow_permissions = 'write'; can_approve_pull_request_reviews = $true; new_flag = $true }
-        $resource['orgs/contoso/actions/permissions/selected-actions'] = @{ github_owned_allowed = $true; verified_allowed = $true; patterns_allowed = @('octo-org/login-action@*', 'evil/action@*') }
+        $resource['orgs/contoso/actions/permissions/selected-actions'] = @{ github_owned_allowed = $true; verified_allowed = $true; patterns_allowed = @('octo-tools/login-action@*', 'evil/action@*') }
         Register-TestGitHubOrgFake -Resource $resource
 
         $plan = Get-TestRoundTripPlan -Config $script:config
