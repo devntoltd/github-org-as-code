@@ -398,7 +398,7 @@
             },
             "patterns_allowed": {
               "type": "array",
-              "markdownDescription": "Actions allowed besides the GitHub-owned ones, such as azure/login@*. Add an action here and re-run before a workflow starts using it. Project data: the actions the workflows of the organization use.",
+              "markdownDescription": "Actions allowed besides the GitHub-owned ones, such as octo-org/login-action@*. Add an action here and re-run before a workflow starts using it. Project data: the actions the workflows of the organization use.",
               "items": {
                 "type": "string",
                 "pattern": "^\\S+$"

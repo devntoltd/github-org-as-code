@@ -82,8 +82,8 @@ function Join-ShapePath {
 
 function Test-ShapePattern {
     # The patterns are also the JSON Schema patterns (ECMAScript), where '$' matches only at the end of the value.
-    # In .NET it also matches before a final newline, so "name`n" would pass here and fail later in an Azure or
-    # GitHub call; '\z' is the .NET anchor with the ECMAScript meaning. Case-sensitive: Azure and GitHub are.
+    # In .NET it also matches before a final newline, so "name`n" would pass here and fail later in a GitHub
+    # call; '\z' is the .NET anchor with the ECMAScript meaning. Case-sensitive, as GitHub is.
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Value,
         [Parameter(Mandatory)][string]$Pattern
@@ -276,7 +276,7 @@ function Test-ShapeNode {
             }
         }
         'enum' {
-            # Case-sensitive: Azure and GitHub expect the exact value.
+            # Case-sensitive: GitHub expects the exact value.
             if ($Value -isnot [string]) {
                 # As JSON: a list or a boolean printed as text would look like a valid value.
                 $Errors.Add("$label must be one of $($Node.Values -join ', '), got $(Format-ShapeValue $Value).")

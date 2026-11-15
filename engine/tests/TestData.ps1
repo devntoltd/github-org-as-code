@@ -59,7 +59,7 @@ function Get-TestGitHubOrgConfig {
     "selected": {
       "github_owned_allowed": true,
       "verified_allowed": false,
-      "patterns_allowed": ["azure/login@*", "octo-org/octo-action@*"]
+      "patterns_allowed": ["octo-org/login-action@*", "octo-org/octo-action@*"]
     },
     "workflow": {
       "default_workflow_permissions": "read",
@@ -396,7 +396,7 @@ function Get-MatchingTestGitHubOrgState {
             secret_scanning_validity_checks_enabled     = $false
         }
         Actions                 = [ordered]@{ enabled_repositories = 'all'; allowed_actions = 'selected'; sha_pinning_required = $true }
-        SelectedActions         = [ordered]@{ github_owned_allowed = $true; verified_allowed = $false; patterns_allowed = [string[]]@('azure/login@*', 'octo-org/octo-action@*') }
+        SelectedActions         = [ordered]@{ github_owned_allowed = $true; verified_allowed = $false; patterns_allowed = [string[]]@('octo-org/login-action@*', 'octo-org/octo-action@*') }
         Workflow                = [ordered]@{ default_workflow_permissions = 'read'; can_approve_pull_request_reviews = $false }
         SelfHostedRunners       = [ordered]@{ enabled_repositories = 'none' }
         ForkPullRequests        = [ordered]@{ approval_policy = 'all_external_contributors' }

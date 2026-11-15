@@ -49,8 +49,8 @@ Describe 'Get-GitHubOrgPlan' {
 
         $action.Body.github_owned_allowed | Should -BeTrue
         $action.Body.verified_allowed | Should -BeFalse
-        ($action.Body.patterns_allowed -join ',') | Should -Be 'azure/login@*,octo-org/octo-action@*'
-        $action.Summary | Should -Be '~ set allowed actions of contoso: github_owned_allowed: <none> -> true; verified_allowed: <none> -> false; patterns_allowed: + azure/login@*, + octo-org/octo-action@*'
+        ($action.Body.patterns_allowed -join ',') | Should -Be 'octo-org/login-action@*,octo-org/octo-action@*'
+        $action.Summary | Should -Be '~ set allowed actions of contoso: github_owned_allowed: <none> -> true; verified_allowed: <none> -> false; patterns_allowed: + octo-org/login-action@*, + octo-org/octo-action@*'
     }
 
     It 'sets a selection GitHub does not have yet even for an empty list' {
@@ -78,7 +78,7 @@ Describe 'Get-GitHubOrgPlan' {
 
     It 'compares patterns as a set, ignoring order and case' {
         $state = Get-MatchingTestGitHubOrgState
-        $state.SelectedActions.patterns_allowed = [string[]]@('OCTO-ORG/octo-action@*', 'azure/login@*')
+        $state.SelectedActions.patterns_allowed = [string[]]@('OCTO-ORG/octo-action@*', 'octo-org/login-action@*')
 
         @(Get-GitHubOrgPlan -Config (Get-TestGitHubOrgConfig) -CurrentState $state).Count | Should -Be 0
     }
@@ -94,12 +94,12 @@ Describe 'Get-GitHubOrgPlan' {
 
     It 'lists added and removed patterns' {
         $state = Get-MatchingTestGitHubOrgState
-        $state.SelectedActions.patterns_allowed = [string[]]@('azure/login@*', 'old-org/old-action@*')
+        $state.SelectedActions.patterns_allowed = [string[]]@('octo-org/login-action@*', 'old-org/old-action@*')
 
         $action = Get-PlanAction -Plan @(Get-GitHubOrgPlan -Config (Get-TestGitHubOrgConfig) -CurrentState $state) -Action 'SetSelectedActions'
 
         $action.Summary | Should -Be '~ set allowed actions of contoso: patterns_allowed: + octo-org/octo-action@*, - old-org/old-action@*'
-        ($action.Body.patterns_allowed -join ',') | Should -Be 'azure/login@*,octo-org/octo-action@*'
+        ($action.Body.patterns_allowed -join ',') | Should -Be 'octo-org/login-action@*,octo-org/octo-action@*'
     }
 
     It 'patches the public email when it differs' {
