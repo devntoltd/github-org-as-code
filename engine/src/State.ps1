@@ -411,7 +411,7 @@ function Get-GitHubOrgState {
         Read-CheckOnlyEndpoint -Organization $Config.organization -OrganizationPlan $state.OrganizationPlan -ResponseFields $state.ResponseFields -Observations $state.Observations -CheckedValues $state.CheckedValues -AbsentCases $absentCases
         $repositories = Read-OrgRepository -Organization $Config.organization
         $state.Inventory = Read-InventoryState -Organization $Config.organization -OrgRepository $repositories
-        $state.CodeSecurity = Read-CodeSecurityState -Organization $Config.organization -Name $Config.codeSecurity.name -OrgRepository $repositories
+        $state.CodeSecurity = Read-CodeSecurityState -Organization $Config.organization -Name $Config.codeSecurity.private.name -OrgRepository $repositories
         $state.CopilotSeats = Read-CopilotSeatState -Organization $Config.organization -Config $Config -Billing $billing
         $state.Ruleset = Read-RulesetState -Organization $Config.organization -Config $Config -OrgRepository $repositories -CopilotSeats $state.CopilotSeats -ConfigDirectory $ConfigDirectory
         $state.Budgets = @(Read-BudgetState -Organization $Config.organization)

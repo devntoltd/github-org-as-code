@@ -1,6 +1,6 @@
 {
   "$schema": "../github.schema.json",
-  "configVersion": "1.0",
+  "configVersion": "2.0",
   "organization": "example-org",
   "inventory": {
     "owners": ["example-owner"],
@@ -139,15 +139,33 @@
     "partnerAgents": { "claude": false, "codex": false }
   },
   "codeSecurity": {
-    "name": "baseline",
-    "description": "Free security features for every repository",
-    "default_for_new_repos": "all",
-    "enforcement": "enforced",
-    "settings": {
-      "dependency_graph": "enabled",
-      "dependabot_alerts": "enabled",
-      "dependabot_security_updates": "enabled",
-      "private_vulnerability_reporting": "enabled"
+    "private": {
+      "name": "baseline",
+      "description": "Free security features for private and internal repositories",
+      "enforcement": "enforced",
+      "settings": {
+        "dependency_graph": "enabled",
+        "dependabot_alerts": "enabled",
+        "dependabot_security_updates": "enabled",
+        "private_vulnerability_reporting": "enabled",
+        "secret_scanning": "not_set",
+        "secret_scanning_push_protection": "not_set",
+        "code_scanning_default_setup": "not_set"
+      }
+    },
+    "public": {
+      "name": "public",
+      "description": "Free security features for public repositories, secret scanning and code scanning included",
+      "enforcement": "enforced",
+      "settings": {
+        "dependency_graph": "enabled",
+        "dependabot_alerts": "enabled",
+        "dependabot_security_updates": "enabled",
+        "private_vulnerability_reporting": "enabled",
+        "secret_scanning": "enabled",
+        "secret_scanning_push_protection": "enabled",
+        "code_scanning_default_setup": "enabled"
+      }
     }
   },
   "ruleset": {

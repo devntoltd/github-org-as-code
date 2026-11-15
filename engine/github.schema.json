@@ -1153,97 +1153,246 @@
     "codeSecurity": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "markdownDescription": "Name of the code security configuration the engine manages. Project data: the name of the configuration.",
-          "pattern": "^\\S(.*\\S)?$"
-        },
-        "description": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "markdownDescription": "Description of the configuration, or null. Project data: the description of the configuration."
-        },
-        "default_for_new_repos": {
-          "type": "string",
-          "markdownDescription": "Recommended: `\"all\"`. Every new repository gets the configuration without anyone remembering to attach it.",
-          "default": "all",
-          "enum": [
-            "all",
-            "none",
-            "private_and_internal",
-            "public"
-          ]
-        },
-        "enforcement": {
-          "type": "string",
-          "markdownDescription": "Recommended: `\"enforced\"`. Repository admins cannot turn the features off.",
-          "default": "enforced",
-          "enum": [
-            "enforced",
-            "unenforced"
-          ]
-        },
-        "settings": {
+        "private": {
           "type": "object",
           "properties": {
-            "dependency_graph": {
+            "name": {
               "type": "string",
-              "markdownDescription": "Recommended: `\"enabled\"`. Dependabot needs the dependency graph to know what a repository uses.",
-              "default": "enabled",
+              "markdownDescription": "Name of the code security configuration of the private and internal repositories. Project data: the name of the configuration.",
+              "pattern": "^\\S(.*\\S)?$"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "markdownDescription": "Description of the configuration, or null. Project data: the description of the configuration."
+            },
+            "enforcement": {
+              "type": "string",
+              "markdownDescription": "Recommended: `\"enforced\"`. Repository admins cannot turn the features off.",
+              "default": "enforced",
               "enum": [
-                "enabled",
-                "disabled",
-                "not_set"
+                "enforced",
+                "unenforced"
               ]
             },
-            "dependabot_alerts": {
-              "type": "string",
-              "markdownDescription": "Recommended: `\"enabled\"`. Known vulnerabilities in dependencies are reported.",
-              "default": "enabled",
-              "enum": [
-                "enabled",
-                "disabled",
-                "not_set"
-              ]
-            },
-            "dependabot_security_updates": {
-              "type": "string",
-              "markdownDescription": "Recommended: `\"enabled\"`. Dependabot opens pull requests that fix vulnerable dependencies.",
-              "default": "enabled",
-              "enum": [
-                "enabled",
-                "disabled",
-                "not_set"
-              ]
-            },
-            "private_vulnerability_reporting": {
-              "type": "string",
-              "markdownDescription": "Recommended: `\"enabled\"`. A researcher can report a vulnerability of a public repository privately instead of in a public issue.",
-              "default": "enabled",
-              "enum": [
-                "enabled",
-                "disabled",
-                "not_set"
-              ]
+            "settings": {
+              "type": "object",
+              "properties": {
+                "dependency_graph": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Dependabot needs the dependency graph to know what a repository uses.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "dependabot_alerts": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Known vulnerabilities in dependencies are reported.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "dependabot_security_updates": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Dependabot opens pull requests that fix vulnerable dependencies.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "private_vulnerability_reporting": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. A researcher can report a vulnerability of a public repository privately instead of in a public issue.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "secret_scanning": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"not_set\"`. Needs a paid Secret Protection license for private and internal repositories; enable it when the organization has one.",
+                  "default": "not_set",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "secret_scanning_push_protection": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"not_set\"`. Needs a paid Secret Protection license for private and internal repositories; enable it when the organization has one.",
+                  "default": "not_set",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "code_scanning_default_setup": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"not_set\"`. Needs a paid Code Security license for private and internal repositories; enable it when the organization has one.",
+                  "default": "not_set",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                }
+              },
+              "required": [
+                "dependency_graph",
+                "dependabot_alerts",
+                "dependabot_security_updates",
+                "private_vulnerability_reporting",
+                "secret_scanning",
+                "secret_scanning_push_protection",
+                "code_scanning_default_setup"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
-            "dependency_graph",
-            "dependabot_alerts",
-            "dependabot_security_updates",
-            "private_vulnerability_reporting"
+            "name",
+            "description",
+            "enforcement",
+            "settings"
+          ],
+          "additionalProperties": false
+        },
+        "public": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "markdownDescription": "Name of the code security configuration of the public repositories. Project data: the name of the configuration.",
+              "pattern": "^\\S(.*\\S)?$"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "markdownDescription": "Description of the configuration, or null. Project data: the description of the configuration."
+            },
+            "enforcement": {
+              "type": "string",
+              "markdownDescription": "Recommended: `\"enforced\"`. Repository admins cannot turn the features off.",
+              "default": "enforced",
+              "enum": [
+                "enforced",
+                "unenforced"
+              ]
+            },
+            "settings": {
+              "type": "object",
+              "properties": {
+                "dependency_graph": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Dependabot needs the dependency graph to know what a repository uses.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "dependabot_alerts": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Known vulnerabilities in dependencies are reported.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "dependabot_security_updates": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Dependabot opens pull requests that fix vulnerable dependencies.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "private_vulnerability_reporting": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. A researcher can report a vulnerability of a public repository privately instead of in a public issue.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "secret_scanning": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: secret scanning.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "secret_scanning_push_protection": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: push protection blocks a push that contains a secret.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                },
+                "code_scanning_default_setup": {
+                  "type": "string",
+                  "markdownDescription": "Recommended: `\"enabled\"`. Free for public repositories: CodeQL default setup scans the code.",
+                  "default": "enabled",
+                  "enum": [
+                    "enabled",
+                    "disabled",
+                    "not_set"
+                  ]
+                }
+              },
+              "required": [
+                "dependency_graph",
+                "dependabot_alerts",
+                "dependabot_security_updates",
+                "private_vulnerability_reporting",
+                "secret_scanning",
+                "secret_scanning_push_protection",
+                "code_scanning_default_setup"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "name",
+            "description",
+            "enforcement",
+            "settings"
           ],
           "additionalProperties": false
         }
       },
       "required": [
-        "name",
-        "description",
-        "default_for_new_repos",
-        "enforcement",
-        "settings"
+        "private",
+        "public"
       ],
       "additionalProperties": false
     },
@@ -1840,12 +1989,22 @@
               "copilot.automations.require_workflow_approval",
               "copilot.partnerAgents.claude",
               "copilot.partnerAgents.codex",
-              "codeSecurity.default_for_new_repos",
-              "codeSecurity.enforcement",
-              "codeSecurity.settings.dependency_graph",
-              "codeSecurity.settings.dependabot_alerts",
-              "codeSecurity.settings.dependabot_security_updates",
-              "codeSecurity.settings.private_vulnerability_reporting",
+              "codeSecurity.private.enforcement",
+              "codeSecurity.private.settings.dependency_graph",
+              "codeSecurity.private.settings.dependabot_alerts",
+              "codeSecurity.private.settings.dependabot_security_updates",
+              "codeSecurity.private.settings.private_vulnerability_reporting",
+              "codeSecurity.private.settings.secret_scanning",
+              "codeSecurity.private.settings.secret_scanning_push_protection",
+              "codeSecurity.private.settings.code_scanning_default_setup",
+              "codeSecurity.public.enforcement",
+              "codeSecurity.public.settings.dependency_graph",
+              "codeSecurity.public.settings.dependabot_alerts",
+              "codeSecurity.public.settings.dependabot_security_updates",
+              "codeSecurity.public.settings.private_vulnerability_reporting",
+              "codeSecurity.public.settings.secret_scanning",
+              "codeSecurity.public.settings.secret_scanning_push_protection",
+              "codeSecurity.public.settings.code_scanning_default_setup",
               "ruleset.enforcement",
               "ruleset.bypass.organizationAdmin",
               "ruleset.rules.deletion",

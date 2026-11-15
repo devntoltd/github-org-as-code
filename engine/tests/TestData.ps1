@@ -7,7 +7,7 @@ function Get-TestGitHubOrgConfig {
     # parsed from JSON like the real config.
     return @'
 {
-  "configVersion": "1.0",
+  "configVersion": "2.0",
   "organization": "contoso",
   "inventory": {
     "owners": ["octocat", "hubot"],
@@ -146,15 +146,33 @@ function Get-TestGitHubOrgConfig {
     "partnerAgents": { "claude": false, "codex": false }
   },
   "codeSecurity": {
-    "name": "baseline",
-    "description": "Free features",
-    "default_for_new_repos": "all",
-    "enforcement": "enforced",
-    "settings": {
-      "dependency_graph": "enabled",
-      "dependabot_alerts": "enabled",
-      "dependabot_security_updates": "enabled",
-      "private_vulnerability_reporting": "enabled"
+    "private": {
+      "name": "baseline",
+      "description": "Free features",
+      "enforcement": "enforced",
+      "settings": {
+        "dependency_graph": "enabled",
+        "dependabot_alerts": "enabled",
+        "dependabot_security_updates": "enabled",
+        "private_vulnerability_reporting": "enabled",
+        "secret_scanning": "not_set",
+        "secret_scanning_push_protection": "not_set",
+        "code_scanning_default_setup": "not_set"
+      }
+    },
+    "public": {
+      "name": "public-baseline",
+      "description": "Free features of public repositories",
+      "enforcement": "enforced",
+      "settings": {
+        "dependency_graph": "enabled",
+        "dependabot_alerts": "enabled",
+        "dependabot_security_updates": "enabled",
+        "private_vulnerability_reporting": "enabled",
+        "secret_scanning": "enabled",
+        "secret_scanning_push_protection": "enabled",
+        "code_scanning_default_setup": "enabled"
+      }
     }
   },
   "ruleset": {
@@ -574,6 +592,7 @@ function Get-TestCodeSecurityConfiguration {
     [pscustomobject]@{
         id = $Id; name = $Name; target_type = $TargetType; description = 'Free features'
         dependency_graph = $State; dependabot_alerts = $State; dependabot_security_updates = $State; private_vulnerability_reporting = $State
+        secret_scanning = 'not_set'; secret_scanning_push_protection = 'not_set'; code_scanning_default_setup = 'not_set'
         advanced_security = 'disabled'; enforcement = 'enforced'
     }
 }
@@ -642,9 +661,9 @@ function Get-MatchingTestCodeSecurityState {
             Name        = 'baseline'
             Description = 'Free features'
             Enforcement = 'enforced'
-            Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled' }
+            Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'not_set'; secret_scanning_push_protection = 'not_set'; code_scanning_default_setup = 'not_set' }
         }
-        Default             = 'all'
+        Default             = 'private_and_internal'
         OtherDefaults       = @()
         Repositories        = @(
             [pscustomobject]@{ Name = 'repo-a'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attached' }
@@ -959,7 +978,7 @@ function Get-MatchingTestGitHubOrgResource {
             Get-TestCodeSecurityConfiguration -Id 17 -Name 'GitHub recommended' -TargetType 'global'
             Get-TestCodeSecurityConfiguration -Id 42
         )
-        'orgs/contoso/code-security/configurations/defaults' = @(@{ default_for_new_repos = 'all'; configuration = @{ id = 42; name = 'baseline' } })
+        'orgs/contoso/code-security/configurations/defaults' = @(@{ default_for_new_repos = 'private_and_internal'; configuration = @{ id = 42; name = 'baseline' } })
         'repos/contoso/repo-a/code-security-configuration'   = $attached
         'repos/contoso/repo-b/code-security-configuration'   = $attached
     }

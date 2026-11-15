@@ -114,7 +114,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
     It 'with -ValidateOnly validates the config and reads nothing from GitHub' {
         Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -ValidateOnly
 
-        Should -Invoke Write-Host -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Object -like 'Config *github.json is valid (config format 1.0).' }
+        Should -Invoke Write-Host -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Object -like 'Config *github.json is valid (config format 2.0).' }
         Should -Invoke Assert-GitHubOrgContext -ModuleName GitHubOrg -Times 0 -Exactly
         Should -Invoke Get-GitHubOrgState -ModuleName GitHubOrg -Times 0 -Exactly
         Should -Invoke Write-BootstrapRecommendation -ModuleName GitHubOrg -Times 0 -Exactly
@@ -122,7 +122,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
 
     It 'with -ValidateOnly stops on an invalid config' {
         $config = Get-TestGitHubOrgConfig
-        $config.configVersion = '2.0'
+        $config.configVersion = '3.0'
         $config | ConvertTo-Json -Depth 10 | Set-Content -Path $script:configPath -Encoding utf8
 
         { Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -ValidateOnly } | Should -Throw '*configVersion*'

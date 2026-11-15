@@ -16,7 +16,7 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
     It 'creates, makes default and attaches a configuration that does not exist' {
         $config = Get-TestGitHubOrgConfig
-        $config.codeSecurity.enforcement = 'unenforced'
+        $config.codeSecurity.private.enforcement = 'unenforced'
 
         $plan = Get-TestCodeSecurityPlan -Config $config -CodeSecurity (Get-EmptyTestCodeSecurityState)
 
@@ -27,11 +27,11 @@ Describe 'Get-GitHubOrgPlan: code security' {
             'orgs/contoso/code-security/configurations/{configuration_id}/defaults'
             'orgs/contoso/code-security/configurations/{configuration_id}/attach'
         )
-        (@($plan[0].Body.Keys) -join ',') | Should -Be 'name,enforcement,description,dependency_graph,dependabot_alerts,dependabot_security_updates,private_vulnerability_reporting'
+        (@($plan[0].Body.Keys) -join ',') | Should -Be 'name,enforcement,description,dependency_graph,dependabot_alerts,dependabot_security_updates,private_vulnerability_reporting,secret_scanning,secret_scanning_push_protection,code_scanning_default_setup'
         $plan[0].Body.enforcement | Should -Be 'unenforced'
-        $plan[0].Summary | Should -Be "+ create code security configuration 'baseline' (unenforced): dependency_graph: enabled, dependabot_alerts: enabled, dependabot_security_updates: enabled, private_vulnerability_reporting: enabled"
-        $plan[1].Body.default_for_new_repos | Should -Be 'all'
-        $plan[1].Summary | Should -Be "~ make code security configuration 'baseline' the default for new repositories: <none> -> all"
+        $plan[0].Summary | Should -Be "+ create code security configuration 'baseline' (unenforced): dependency_graph: enabled, dependabot_alerts: enabled, dependabot_security_updates: enabled, private_vulnerability_reporting: enabled, secret_scanning: not_set, secret_scanning_push_protection: not_set, code_scanning_default_setup: not_set"
+        $plan[1].Body.default_for_new_repos | Should -Be 'private_and_internal'
+        $plan[1].Summary | Should -Be "~ make code security configuration 'baseline' the default for new repositories: <none> -> private_and_internal"
         $plan[2].Body.scope | Should -Be 'all_without_configurations'
         $plan[2].Summary | Should -Be "+ attach code security configuration 'baseline' to the repositories without one: repo-a, repo-b"
     }
@@ -88,28 +88,17 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
         $plan[0].Action | Should -Be 'SetCodeSecurityDefault'
         $plan[0].Endpoint | Should -Be 'orgs/contoso/code-security/configurations/42/defaults'
-        $plan[0].Summary | Should -BeLike "*: <none> -> all; replaces 'legacy' (private_and_internal)"
+        $plan[0].Summary | Should -BeLike "*: <none> -> private_and_internal; replaces 'legacy' (private_and_internal)"
     }
 
     It 'does not name a default whose visibility does not overlap' {
-        $config = Get-TestGitHubOrgConfig
-        $config.codeSecurity.default_for_new_repos = 'public'
         $codeSecurity = Get-MatchingTestCodeSecurityState
         $codeSecurity.Default = $null
-        $codeSecurity.OtherDefaults = @([pscustomobject]@{ Name = 'legacy'; DefaultForNewRepos = 'private_and_internal' })
+        $codeSecurity.OtherDefaults = @([pscustomobject]@{ Name = 'legacy'; DefaultForNewRepos = 'public' })
 
-        $plan = Get-TestCodeSecurityPlan -Config $config -CodeSecurity $codeSecurity
+        $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
 
-        $plan[0].Summary | Should -BeLike '*: <none> -> public'
-    }
-
-    It 'treats a configuration that is not a default as none' {
-        $config = Get-TestGitHubOrgConfig
-        $config.codeSecurity.default_for_new_repos = 'none'
-        $codeSecurity = Get-MatchingTestCodeSecurityState
-        $codeSecurity.Default = $null
-
-        @(Get-TestCodeSecurityPlan -Config $config -CodeSecurity $codeSecurity).Count | Should -Be 0
+        $plan[0].Summary | Should -BeLike '*: <none> -> private_and_internal'
     }
 
     It 'does not attach when every repository without our configuration has another one' {

@@ -27,10 +27,10 @@ function Get-CodeSecurityAction {
         [Parameter(Mandatory)][object]$Current
     )
 
-    $section = $Config.codeSecurity
+    $section = $Config.codeSecurity.private
     $name = [string]$section.name
     $base = "orgs/$($Config.organization)/code-security/configurations"
-    $desired = Get-ConfiguredValue -Config $Config -Section 'codeSecurity.settings'
+    $desired = Get-ConfiguredValue -Config $Config -Section 'codeSecurity.private.settings'
 
     if ($null -eq $Current.Configuration) {
         # The id is known only after the create call; Invoke-GitHubOrgPlan replaces the token.
@@ -81,7 +81,7 @@ function Get-CodeSecurityAction {
         }
     }
 
-    $wanted = [string]$section.default_for_new_repos
+    $wanted = $script:CodeSecurityVisibilities.private.Default
     # Not being a default is the same as 'none'.
     $currentDefault = if ($Current.Default) { [string]$Current.Default } else { 'none' }
     if ($wanted -cne $currentDefault) {
@@ -122,7 +122,7 @@ function Get-CodeSecurityWarning {
         [AllowNull()][object]$CodeSecurity
     )
 
-    $name = [string]$Config.codeSecurity.name
+    $name = [string]$Config.codeSecurity.private.name
     $page = "https://github.com/organizations/$($Config.organization)/settings/security_products"
     $ownId = $null
     if ($CodeSecurity.Configuration) {

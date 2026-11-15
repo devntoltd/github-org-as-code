@@ -20,10 +20,17 @@ Describe 'Test-GitHubOrgConfig' {
         @{ Path = 'organization' }
         @{ Path = 'inventory' }
         @{ Path = 'codeSecurity' }
+        @{ Path = 'codeSecurity.private'; Remove = 'private' }
+        @{ Path = 'codeSecurity.public'; Remove = 'public' }
         @{ Path = 'ruleset' }
     ) {
         $config = Get-TestGitHubOrgConfig
-        $config.PSObject.Properties.Remove($Path)
+        if ($Remove) {
+            $config.codeSecurity.PSObject.Properties.Remove($Remove)
+        }
+        else {
+            $config.PSObject.Properties.Remove($Path)
+        }
 
         Assert-ConfigError -Errors @(Test-GitHubOrgConfig -Config $config) -Path $Path -Only
     }
@@ -32,8 +39,9 @@ Describe 'Test-GitHubOrgConfig' {
         @{ Path = 'settings.email'; Remove = { param($c) $c.settings.PSObject.Properties.Remove('email') } }
         @{ Path = 'settings.members_can_invite_outside_collaborators'; Remove = { param($c) $c.settings.PSObject.Properties.Remove('members_can_invite_outside_collaborators') } }
         @{ Path = 'actions.enabled_repositories'; Remove = { param($c) $c.actions.PSObject.Properties.Remove('enabled_repositories') } }
-        @{ Path = 'codeSecurity.description'; Remove = { param($c) $c.codeSecurity.PSObject.Properties.Remove('description') } }
-        @{ Path = 'codeSecurity.settings.dependabot_alerts'; Remove = { param($c) $c.codeSecurity.settings.PSObject.Properties.Remove('dependabot_alerts') } }
+        @{ Path = 'codeSecurity.public.description'; Remove = { param($c) $c.codeSecurity.public.PSObject.Properties.Remove('description') } }
+        @{ Path = 'codeSecurity.private.settings.dependabot_alerts'; Remove = { param($c) $c.codeSecurity.private.settings.PSObject.Properties.Remove('dependabot_alerts') } }
+        @{ Path = 'codeSecurity.public.settings.secret_scanning'; Remove = { param($c) $c.codeSecurity.public.settings.PSObject.Properties.Remove('secret_scanning') } }
     ) {
         $config = Get-TestGitHubOrgConfig
         & $Remove $config
@@ -181,11 +189,13 @@ Describe 'Test-GitHubOrgConfig' {
         @{ Name = 'a nested section set to null'; Mutate = { param($c) $c.actions.workflow = $null }; Path = 'actions.workflow'; Part = @() }
         @{ Name = 'a top-level section set to null'; Mutate = { param($c) $c.settings = $null }; Path = 'settings'; Part = @() }
         @{ Name = 'an organization that is not a string'; Mutate = { param($c) $c.organization = @('contoso') }; Path = 'organization'; Part = @('["contoso"]') }
-        @{ Name = 'a code security settings section set to null'; Mutate = { param($c) $c.codeSecurity.settings = $null }; Path = 'codeSecurity.settings'; Part = @() }
-        @{ Name = 'an enforcement that is not known'; Mutate = { param($c) $c.codeSecurity.enforcement = 'strict' }; Path = 'codeSecurity.enforcement'; Part = @('enforced, unenforced', "'strict'") }
-        @{ Name = 'a null code security name'; Mutate = { param($c) $c.codeSecurity.name = $null }; Path = 'codeSecurity.name'; Part = @() }
-        @{ Name = 'an empty code security name'; Mutate = { param($c) $c.codeSecurity.name = '' }; Path = 'codeSecurity.name'; Part = @('a non-empty name without leading or trailing whitespace', "''") }
-        @{ Name = 'a code security name with a leading space'; Mutate = { param($c) $c.codeSecurity.name = ' baseline' }; Path = 'codeSecurity.name'; Part = @('a non-empty name without leading or trailing whitespace', "' baseline'") }
+        @{ Name = 'a code security settings section set to null'; Mutate = { param($c) $c.codeSecurity.private.settings = $null }; Path = 'codeSecurity.private.settings'; Part = @() }
+        @{ Name = 'an enforcement that is not known'; Mutate = { param($c) $c.codeSecurity.private.enforcement = 'strict' }; Path = 'codeSecurity.private.enforcement'; Part = @('enforced, unenforced', "'strict'") }
+        @{ Name = 'a public enforcement that is not known'; Mutate = { param($c) $c.codeSecurity.public.enforcement = 'strict' }; Path = 'codeSecurity.public.enforcement'; Part = @('enforced, unenforced', "'strict'") }
+        @{ Name = 'a null code security name'; Mutate = { param($c) $c.codeSecurity.private.name = $null }; Path = 'codeSecurity.private.name'; Part = @() }
+        @{ Name = 'an empty code security name'; Mutate = { param($c) $c.codeSecurity.public.name = '' }; Path = 'codeSecurity.public.name'; Part = @('a non-empty name without leading or trailing whitespace', "''") }
+        @{ Name = 'a code security name with a leading space'; Mutate = { param($c) $c.codeSecurity.private.name = ' baseline' }; Path = 'codeSecurity.private.name'; Part = @('a non-empty name without leading or trailing whitespace', "' baseline'") }
+        @{ Name = 'a default for new repositories, which the engine sets'; Mutate = { param($c) $c.codeSecurity.private | Add-Member -NotePropertyName default_for_new_repos -NotePropertyValue 'all' }; Path = 'codeSecurity.private.default_for_new_repos'; Part = @() }
     ) {
         $config = Get-TestGitHubOrgConfig
         & $Mutate $config
@@ -195,27 +205,43 @@ Describe 'Test-GitHubOrgConfig' {
 
     It 'accepts a null code security description' {
         $config = Get-TestGitHubOrgConfig
-        $config.codeSecurity.description = $null
+        $config.codeSecurity.private.description = $null
+        $config.codeSecurity.public.description = $null
 
         Test-GitHubOrgConfig -Config $config | Should -BeNullOrEmpty
     }
 
     It 'reports every code security error together' {
         $config = Get-TestGitHubOrgConfig
-        $config.codeSecurity.default_for_new_repos = 'private'
-        $config.codeSecurity.description = 5
-        $config.codeSecurity | Add-Member -NotePropertyName secret_protection -NotePropertyValue 'enabled'
-        $config.codeSecurity.settings.dependabot_alerts = 'on'
-        $config.codeSecurity.settings | Add-Member -NotePropertyName secret_scanning -NotePropertyValue 'enabled'
+        $config.codeSecurity.private.description = 5
+        $config.codeSecurity.private | Add-Member -NotePropertyName secret_protection -NotePropertyValue 'enabled'
+        $config.codeSecurity.private.settings.dependabot_alerts = 'on'
+        $config.codeSecurity.public.settings.secret_scanning = 'on'
+        $config.codeSecurity.public.settings | Add-Member -NotePropertyName secret_scanning_validity_checks -NotePropertyValue 'enabled'
 
         $errors = @(Test-GitHubOrgConfig -Config $config)
 
-        Assert-ConfigError -Errors $errors -Path 'codeSecurity.default_for_new_repos' -Part @('all, none, private_and_internal, public', "'private'")
-        Assert-ConfigError -Errors $errors -Path 'codeSecurity.description' -Part @('5')
-        Assert-ConfigError -Errors $errors -Path 'codeSecurity.secret_protection'
-        Assert-ConfigError -Errors $errors -Path 'codeSecurity.settings.dependabot_alerts' -Part @('enabled, disabled, not_set', "'on'")
-        Assert-ConfigError -Errors $errors -Path 'codeSecurity.settings.secret_scanning'
+        Assert-ConfigError -Errors $errors -Path 'codeSecurity.private.description' -Part @('5')
+        Assert-ConfigError -Errors $errors -Path 'codeSecurity.private.secret_protection'
+        Assert-ConfigError -Errors $errors -Path 'codeSecurity.private.settings.dependabot_alerts' -Part @('enabled, disabled, not_set', "'on'")
+        Assert-ConfigError -Errors $errors -Path 'codeSecurity.public.settings.secret_scanning' -Part @('enabled, disabled, not_set', "'on'")
+        Assert-ConfigError -Errors $errors -Path 'codeSecurity.public.settings.secret_scanning_validity_checks'
         $errors.Count | Should -Be 5
+    }
+
+    It 'rejects two code security names that differ only in case' {
+        $config = Get-TestGitHubOrgConfig
+        $config.codeSecurity.public.name = 'Baseline'
+
+        Test-GitHubOrgConfig -Config $config |
+            Should -Be "codeSecurity.public.name 'Baseline' is codeSecurity.private.name 'baseline' in another case; GitHub keeps configuration names unique whatever their case, so give the two configurations different names."
+    }
+
+    It 'rejects two equal code security names' {
+        $config = Get-TestGitHubOrgConfig
+        $config.codeSecurity.public.name = 'baseline'
+
+        @(Test-GitHubOrgConfig -Config $config) | Should -BeLike '*codeSecurity.public.name*'
     }
 
     It 'rejects a public email that is not an address: <Json>' -ForEach @(
@@ -475,7 +501,7 @@ Describe 'Test-GitHubOrgConfig' {
 
         $fields | Should -Contain 'settings.members_can_invite_outside_collaborators'
         $fields | Should -Contain 'actions.selected.verified_allowed'
-        $fields | Should -Contain 'codeSecurity.settings.dependabot_alerts'
+        $fields | Should -Contain 'codeSecurity.private.settings.dependabot_alerts'
         $fields | Should -Not -Contain 'settings.email'
         $fields | Should -Not -Contain 'actions.retention.days'
         $fields | Should -Contain 'actions.privateForkPullRequests.require_approval_for_fork_pr_workflows'
@@ -486,7 +512,7 @@ Describe 'Test-GitHubOrgConfig' {
         $fields | Should -Contain 'ruleset.rules.pullRequest.requiredReviewers'
         $fields | Should -Contain 'ruleset.rules.copilotCodeReview.enabled'
         $fields | Should -Contain 'copilot.policies.cli_billed_to_organization'
-        $fields.Count | Should -Be 112
+        $fields.Count | Should -Be 122
     }
 
     It 'recommends the values of the complete test config' {
@@ -509,31 +535,31 @@ Describe 'Test-GitHubOrgConfig' {
 Describe 'configVersion' {
     It 'accepts the config format of the engine' {
         $config = Get-TestGitHubOrgConfig
-        $config.configVersion = '1.0'
+        $config.configVersion = '2.0'
 
         Test-GitHubOrgConfig -Config $config | Should -BeNullOrEmpty
     }
 
     It 'rejects <Version>, a format the engine does not read' -ForEach @(
-        @{ Version = '1.1' }
-        @{ Version = '2.0' }
-        @{ Version = '0.9' }
+        @{ Version = '2.1' }
+        @{ Version = '1.0' }
+        @{ Version = '3.0' }
     ) {
         $config = Get-TestGitHubOrgConfig
         $config.configVersion = $Version
 
         Test-GitHubOrgConfig -Config $config |
-            Should -Be "configVersion '$Version': this version of the engine reads config formats 1.0 to 1.0. Update the engine or the config as the notes of the format say."
+            Should -Be "configVersion '$Version': this version of the engine reads config formats 2.0 to 2.0. Update the engine or the config as the notes of the format say."
     }
 
     It 'reports only the format, not the fields, of a config of another format' {
         # A config of another major differs in its keys: those errors would hide the one that explains them.
         $config = Get-TestGitHubOrgConfig
-        $config.configVersion = '2.0'
+        $config.configVersion = '1.0'
         $config.PSObject.Properties.Remove('inventory')
         $config | Add-Member -NotePropertyName 'renamedSection' -NotePropertyValue @{}
 
-        Test-GitHubOrgConfig -Config $config | Should -BeLike "configVersion '2.0': *"
+        Test-GitHubOrgConfig -Config $config | Should -BeLike "configVersion '1.0': *"
     }
 
     It 'rejects <Version>, which is not major.minor' -ForEach @(

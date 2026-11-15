@@ -33,7 +33,7 @@ function Read-CodeSecurityState {
             Name        = [string]$match.name
             Description = [string]$match.description
             Enforcement = [string]$match.enforcement
-            Settings    = ConvertTo-FieldMap -Response $match -Section 'codeSecurity.settings'
+            Settings    = ConvertTo-FieldMap -Response $match -Section 'codeSecurity.private.settings'
         }
     }
 
