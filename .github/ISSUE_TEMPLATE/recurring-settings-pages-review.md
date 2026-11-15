@@ -6,7 +6,7 @@ labels: [recurring, "recurring:settings-pages-review"]
 assignees: [rodchenkov]
 ---
 
-Why: the pages have no API, so a page or control that GitHub adds or moves is found only by a person; the settings only a person can check are checked only by this review. Details: [settings reference](https://github.com/devntoltd/github-org-bootstrap/blob/main/engine/settings.md)
+Why: the pages have no API, so a page or control that GitHub adds or moves is found only by a person; the settings only a person can check are checked only by this review. Details: [settings reference](https://github.com/devntoltd/github-org-as-code/blob/main/engine/settings.md)
 
 - [ ] Compare the settings menu of `https://github.com/organizations/<org>/settings/` with the pages of `engine/settings.md` (UI coverage, in menu order): a page in the menu and not in the file is new or was missed; a page in the file and not in the menu was removed or renamed.
 - [ ] Open each page and compare its controls with its section of `engine/settings.md`: a control that is neither a row nor a "not managed" entry is new.

@@ -23,7 +23,7 @@ Describe 'engine/examples/run.ps1' {
         New-Item -ItemType Directory -Path $directory | Out-Null
         $script:run = Join-Path -Path $directory -ChildPath 'run.ps1'
         Copy-Item -LiteralPath $script:source -Destination $script:run
-        Set-Content -LiteralPath (Join-Path -Path $directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-bootstrap'; Tag = 'v1.0.0'; Commit = '$script:commit' }"
+        Set-Content -LiteralPath (Join-Path -Path $directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-as-code'; Tag = 'v1.0.0'; Commit = '$script:commit' }"
         # Shared with the mocks, whose bodies do not see this file's script scope: a closure keeps the reference.
         $state = @{ Directory = $directory; Head = $null; Status = @(); TagLines = @("$script:commit`trefs/tags/v1.0.0"); Commit = $script:commit; Stub = $script:stub; Wrapper = (Get-Content -Raw -LiteralPath $script:source) }
         $script:state = $state
@@ -65,7 +65,7 @@ Describe 'engine/examples/run.ps1' {
     It 'stops when the tag is not at the pinned commit' {
         $script:state.TagLines = @("$script:other`trefs/tags/v1.0.0")
 
-        { & $script:run -WhatIf } | Should -Throw "Tag v1.0.0 of example-owner/github-org-bootstrap is at $script:other, not at the pinned commit $script:commit."
+        { & $script:run -WhatIf } | Should -Throw "Tag v1.0.0 of example-owner/github-org-as-code is at $script:other, not at the pinned commit $script:commit."
         Should -Invoke git -Times 0 -Exactly -ParameterFilter { $args -contains 'fetch' }
         Get-TestCall | Should -BeNullOrEmpty
     }
@@ -217,7 +217,7 @@ Describe 'engine/examples/run.ps1' {
     }
 
     It 'rejects a manifest with a short commit' {
-        Set-Content -LiteralPath (Join-Path -Path $script:state.Directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-bootstrap'; Tag = 'v1.0.0'; Commit = 'abc' }"
+        Set-Content -LiteralPath (Join-Path -Path $script:state.Directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-as-code'; Tag = 'v1.0.0'; Commit = 'abc' }"
 
         { & $script:run -WhatIf } | Should -Throw '*Commit*'
         Should -Invoke git -Times 0 -Exactly -ParameterFilter { $args[0] -eq 'ls-remote' }

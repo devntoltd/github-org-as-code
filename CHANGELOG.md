@@ -10,6 +10,9 @@ release unchanged.
 
 ### Changed
 
+- The repository is renamed from `devntoltd/github-org-bootstrap` to `devntoltd/github-org-as-code`, and the first
+  line of every run and the schema title carry the new name. GitHub redirects the old URLs; set `Repository` of
+  `engine.psd1` to `devntoltd/github-org-as-code` with the next upgrade.
 - The description of `actions.selected.patterns_allowed` in the schema gives `example-owner/example-action@*` as its
   example instead of a real vendor's action.
 
@@ -73,8 +76,8 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.1.0...v2.0.0
-[1.1.0]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.1...v1.1.0
-[1.0.1]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/devntoltd/github-org-bootstrap/releases/tag/v1.0.0
+[Unreleased]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/devntoltd/github-org-as-code/compare/v1.1.0...v2.0.0
+[1.1.0]: https://github.com/devntoltd/github-org-as-code/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/devntoltd/github-org-as-code/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/devntoltd/github-org-as-code/releases/tag/v1.0.0

@@ -2,7 +2,7 @@
 # Tag and Commit together, in a pull request with the -WhatIf plan of the new version (README.md, Upgrading). The
 # commit below is a placeholder: take the one of the release you pin.
 @{
-    Repository = 'devntoltd/github-org-bootstrap'
+    Repository = 'devntoltd/github-org-as-code'
     Tag        = 'v2.0.0'
     Commit     = '0000000000000000000000000000000000000000'
 }

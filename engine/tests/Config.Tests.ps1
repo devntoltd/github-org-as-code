@@ -686,7 +686,7 @@ Describe 'github.schema.json' {
     }
 
     It 'is generated from the shape (run tools/Build-ConfigSchema.ps1 after changing it)' {
-        $expected = ConvertTo-ConfigSchema -Shape (Get-GitHubOrgConfigShape) -Title 'github-org-bootstrap config'
+        $expected = ConvertTo-ConfigSchema -Shape (Get-GitHubOrgConfigShape) -Title 'github-org-as-code config'
 
         (Get-Content -LiteralPath $script:schemaPath -Raw) -replace "`r`n", "`n" | Should -BeExactly $expected
     }
