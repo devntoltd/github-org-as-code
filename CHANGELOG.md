@@ -8,6 +8,8 @@ release unchanged.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-15
+
 ### Config format
 
 - `configVersion` `2.0`: move the fields of `codeSecurity` into `codeSecurity.private` and drop
@@ -15,7 +17,8 @@ release unchanged.
   repositories); add `codeSecurity.public` with `name`, `description`, `enforcement` and `settings`, and the
   `settings` `advanced_security`, `secret_scanning`, `secret_scanning_push_protection` and
   `code_scanning_default_setup` to both sections (a feature `enabled` needs `advanced_security` `enabled`),
-  as in `engine/examples/github.json`. The two names must differ, also ignoring case.
+  as in `engine/examples/github.json`. The two names must differ, also ignoring case. `engine/examples/run.ps1` is
+  unchanged since 1.1.0: raise `Tag` and `Commit` and edit `github.json` in one pull request.
 
 ### Changed
 
@@ -25,7 +28,6 @@ release unchanged.
   its visibility without a configuration. A public repository already on the private configuration keeps it and
   gets a warning: apply the public one on the security products page if you want it. The engine still never
   switches a repository's configuration.
-
 - When gh is missing or older than the minimum, the error names how to install or update it on Windows (winget),
   macOS (Homebrew) and Linux (GitHub's package repository), instead of the winget command alone; the engine
   reference shows the install commands of each.
@@ -66,7 +68,8 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/devntoltd/github-org-bootstrap/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/devntoltd/github-org-bootstrap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/devntoltd/github-org-bootstrap/releases/tag/v1.0.0
