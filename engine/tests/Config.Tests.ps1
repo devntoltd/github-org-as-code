@@ -241,7 +241,8 @@ Describe 'Test-GitHubOrgConfig' {
         $config = Get-TestGitHubOrgConfig
         $config.codeSecurity.public.name = 'baseline'
 
-        @(Test-GitHubOrgConfig -Config $config) | Should -BeLike '*codeSecurity.public.name*'
+        Test-GitHubOrgConfig -Config $config |
+            Should -Be "codeSecurity.public.name 'baseline' is also codeSecurity.private.name; give the two configurations different names."
     }
 
     It 'rejects a public email that is not an address: <Json>' -ForEach @(

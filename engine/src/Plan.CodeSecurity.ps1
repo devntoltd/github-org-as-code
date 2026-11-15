@@ -120,7 +120,7 @@ function Get-CodeSecurityConfigurationAction {
     }
 
     # GitHub rejects 'selected' without ids, so a visibility without such repositories plans no attach.
-    $unattached = @($Current.Repositories | Where-Object { $null -eq $_.ConfigurationId -and $_.Visibility -in $visibility.Repositories })
+    $unattached = @($Current.Repositories | Where-Object { $null -eq $_.ConfigurationId -and (Get-CodeSecurityVisibilityKey -Visibility $_.Visibility) -eq $Key })
     if ($unattached.Count -gt 0) {
         [pscustomobject]@{
             Action   = 'AttachCodeSecurityConfiguration'
@@ -172,11 +172,14 @@ function Get-CodeSecurityWarning {
         if ($other.Count -gt 0) {
             $otherLabel = $script:CodeSecurityVisibilities[$other[0]].Label
             "Repository '$($repository.Name)' is $($repository.Visibility) but uses code security configuration '$($repository.ConfigurationName)', which is for $otherLabel repositories, not '$name'. The engine leaves it alone; to switch it, open $page and apply '$name' to the repository."
+            # It stays on that configuration, so its status is still worth knowing.
+            $name = [string]$Config.codeSecurity.($other[0]).name
         }
         elseif ($repository.ConfigurationId -ne $ownIds[$expected]) {
             "Repository '$($repository.Name)' uses code security configuration '$($repository.ConfigurationName)', not '$name'. The engine leaves it alone; to switch it, open $page and apply '$name' to the repository."
+            continue
         }
-        elseif ($repository.Status -eq 'failed') {
+        if ($repository.Status -eq 'failed') {
             "Attaching code security configuration '$name' to repository '$($repository.Name)' failed. Open $page to see why, then re-run."
         }
         elseif ($repository.Status -cnotin $script:CodeSecurityStatusesInEffect) {

@@ -170,6 +170,19 @@ Describe 'Get-GitHubOrgPlan: code security' {
         @(Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity).Count | Should -Be 0
     }
 
+    It 'treats a repository of a visibility GitHub did not name as private' {
+        $codeSecurity = Get-MatchingTestCodeSecurityState
+        $codeSecurity.Repositories[0].Visibility = ''
+        $codeSecurity.Repositories[0].ConfigurationId = $null
+        $codeSecurity.Repositories[0].ConfigurationName = $null
+
+        $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
+
+        $plan.Count | Should -Be 1
+        $plan[0].Endpoint | Should -Be 'orgs/contoso/code-security/configurations/42/attach'
+        @($plan[0].Body.selected_repository_ids) | Should -Be @(101)
+    }
+
     It 'attaches an existing configuration by its id' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
         $codeSecurity.Repositories[1].ConfigurationId = $null
@@ -220,6 +233,19 @@ Describe 'Get-GitHubOrgWarning: code security' {
 
         Get-GitHubOrgWarning -Config (Get-TestGitHubOrgConfig) -CurrentState $state -Plan @() |
             Should -BeLike "Repository 'repo-a' is private but uses code security configuration 'public-baseline', which is for public repositories, not 'baseline'.*"
+    }
+
+    It 'reports a failed attachment of a repository on the configuration of the other visibility too' {
+        $state = Get-MatchingTestGitHubOrgState
+        $state.CodeSecurity.Repositories[1].ConfigurationId = 42
+        $state.CodeSecurity.Repositories[1].ConfigurationName = 'baseline'
+        $state.CodeSecurity.Repositories[1].Status = 'failed'
+
+        $warnings = @(Get-GitHubOrgWarning -Config (Get-TestGitHubOrgConfig) -CurrentState $state -Plan @())
+
+        $warnings.Count | Should -Be 2
+        $warnings[0] | Should -BeLike "Repository 'repo-b' is public but uses*"
+        $warnings[1] | Should -BeLike "Attaching code security configuration 'baseline' to repository 'repo-b' failed.*"
     }
 
     It 'reports a failed attachment of the public configuration' {
