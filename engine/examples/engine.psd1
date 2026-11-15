@@ -3,6 +3,6 @@
 # commit below is a placeholder: take the one of the release you pin.
 @{
     Repository = 'devntoltd/github-org-bootstrap'
-    Tag        = 'v1.1.0'
+    Tag        = 'v2.0.0'
     Commit     = '0000000000000000000000000000000000000000'
 }
