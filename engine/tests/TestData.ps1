@@ -542,27 +542,33 @@ function Get-TestGhRoute {
     # The code security reads, answering like GitHub from the state's code security.
     if ($State.PSObject.Properties['CodeSecurity'] -and $null -ne $State.CodeSecurity) {
         $codeSecurity = $State.CodeSecurity
-        $configurations = @()
-        $defaults = @()
-        if ($codeSecurity.Configuration) {
-            $own = $codeSecurity.Configuration
-            $configuration = [pscustomobject]@{ id = $own.Id; name = $own.Name; target_type = 'organization'; description = $own.Description; enforcement = $own.Enforcement }
-            foreach ($field in $own.Settings.Keys) {
-                $configuration | Add-Member -NotePropertyName $field -NotePropertyValue $own.Settings[$field]
+        $configurations = [System.Collections.Generic.List[object]]::new()
+        $defaults = [System.Collections.Generic.List[object]]::new()
+        foreach ($own in @($codeSecurity.Private, $codeSecurity.Public)) {
+            if (-not $own.Configuration) {
+                continue
             }
-            $configurations = @($configuration)
-            if ($codeSecurity.Default) {
-                $defaults = @([pscustomobject]@{ default_for_new_repos = $codeSecurity.Default; configuration = [pscustomobject]@{ id = $own.Id; name = $own.Name } })
+            $configuration = [pscustomobject]@{ id = $own.Configuration.Id; name = $own.Configuration.Name; target_type = 'organization'; description = $own.Configuration.Description; enforcement = $own.Configuration.Enforcement }
+            foreach ($field in $own.Configuration.Settings.Keys) {
+                $configuration | Add-Member -NotePropertyName $field -NotePropertyValue $own.Configuration.Settings[$field]
+            }
+            $configurations.Add($configuration)
+            if ($own.Default) {
+                $defaults.Add([pscustomobject]@{ default_for_new_repos = $own.Default; configuration = [pscustomobject]@{ id = $own.Configuration.Id; name = $own.Configuration.Name } })
             }
         }
         $repositories = [ordered]@{}
+        $visibility = @{}
+        $ids = @{}
         foreach ($repository in @($codeSecurity.Repositories)) {
             $repositories[$repository.Name] = $null
+            $visibility[$repository.Name] = $repository.Visibility
+            $ids[$repository.Name] = $repository.Id
             if ($null -ne $repository.ConfigurationId) {
                 $repositories[$repository.Name] = [pscustomobject]@{ status = $repository.Status; configuration = [pscustomobject]@{ id = $repository.ConfigurationId; name = $repository.ConfigurationName } }
             }
         }
-        $routes = Add-TestCodeSecurityRoute -Route $routes -Configurations $configurations -Defaults $defaults -Repositories $repositories -Invitations $repositoryInvitations
+        $routes = Add-TestCodeSecurityRoute -Route $routes -Configurations $configurations.ToArray() -Defaults $defaults.ToArray() -Repositories $repositories -Visibility $visibility -Id $ids -Invitations $repositoryInvitations
     }
     if ($State.PSObject.Properties['Ruleset'] -and $null -ne $State.Ruleset) {
         $routes = Add-TestRulesetRoute -Route $routes -Ruleset $State.Ruleset
@@ -604,7 +610,8 @@ function Add-TestCodeSecurityRoute {
     # gets a route of its own only with the status 'detached', like every other repository. Vanished: repositories in
     # the repository list whose own reads answer 404 (deleted, renamed or transferred meanwhile). Invitations:
     # repository name -> its pending invitations (Get-TestRepositoryInvitation); every other repository has none.
-    # Visibility: repository name -> its visibility; every other repository is private.
+    # Visibility: repository name -> its visibility; every other repository is private. Id: repository name -> its id;
+    # every other repository gets 100 plus its position in the list (repo-a first: 101).
     # Lists come as gh --paginate --slurp prints them, split into pages of PageSize.
     param(
         [Parameter(Mandatory)][hashtable]$Route,
@@ -615,15 +622,19 @@ function Add-TestCodeSecurityRoute {
         [string[]]$Vanished = @(),
         [hashtable]$Invitations = @{},
         [hashtable]$Visibility = @{},
+        [hashtable]$Id = @{},
         [int]$PageSize = 100
     )
 
     $Route['GET orgs/contoso/code-security/configurations?per_page=100'] = Get-TestGhPagesResponse -Items $Configurations -PageSize $PageSize
     $Route['GET orgs/contoso/code-security/configurations/defaults'] = Get-TestGhListResponse -Items $Defaults
     $names = @($Repositories.Keys) + @($Vanished)
+    $position = 100
     $repositoryItems = @($names | ForEach-Object {
-            $repositoryVisibility = if ($Visibility.ContainsKey($_)) { $Visibility[$_] } else { 'private' }
-            [pscustomobject]@{ name = $_; archived = ($_ -in $Archived); visibility = $repositoryVisibility }
+            $position++
+            $repositoryVisibility = if ($Visibility.ContainsKey($_) -and $Visibility[$_]) { $Visibility[$_] } else { 'private' }
+            $repositoryId = if ($Id.ContainsKey($_) -and $Id[$_]) { $Id[$_] } else { $position }
+            [pscustomobject]@{ id = $repositoryId; name = $_; archived = ($_ -in $Archived); visibility = $repositoryVisibility }
         })
     $Route['GET orgs/contoso/repos?per_page=100'] = Get-TestGhPagesResponse -Items $repositoryItems -PageSize $PageSize
     foreach ($name in $Repositories.Keys) {
@@ -654,34 +665,47 @@ function Add-TestCodeSecurityRoute {
 }
 
 function Get-MatchingTestCodeSecurityState {
-    # The code security state that matches Get-TestGitHubOrgConfig: configuration 42, default for all, attached.
+    # The code security state that matches Get-TestGitHubOrgConfig: private configuration 42 and public configuration
+    # 43, each the default of its visibility; repositories on the configuration of their visibility.
     [pscustomobject]@{
-        Configuration       = [pscustomobject]@{
-            Id          = 42
-            Name        = 'baseline'
-            Description = 'Free features'
-            Enforcement = 'enforced'
-            Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'not_set'; secret_scanning_push_protection = 'not_set'; code_scanning_default_setup = 'not_set' }
+        Private             = [pscustomobject]@{
+            Configuration = [pscustomobject]@{
+                Id          = 42
+                Name        = 'baseline'
+                Description = 'Free features'
+                Enforcement = 'enforced'
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'not_set'; secret_scanning_push_protection = 'not_set'; code_scanning_default_setup = 'not_set' }
+            }
+            Default       = 'private_and_internal'
         }
-        Default             = 'private_and_internal'
+        Public              = [pscustomobject]@{
+            Configuration = [pscustomobject]@{
+                Id          = 43
+                Name        = 'public-baseline'
+                Description = 'Free features of public repositories'
+                Enforcement = 'enforced'
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; secret_scanning = 'enabled'; secret_scanning_push_protection = 'enabled'; code_scanning_default_setup = 'enabled' }
+            }
+            Default       = 'public'
+        }
         OtherDefaults       = @()
         Repositories        = @(
-            [pscustomobject]@{ Name = 'repo-a'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attached' }
-            [pscustomobject]@{ Name = 'repo-b'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attaching' }
+            [pscustomobject]@{ Id = 101; Name = 'repo-a'; Visibility = 'private'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attached' }
+            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'private'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attaching' }
         )
         SkippedRepositories = @()
     }
 }
 
 function Get-EmptyTestCodeSecurityState {
-    # No configuration, no default, two repositories without a configuration.
+    # Neither configuration, no default, two repositories without a configuration.
     [pscustomobject]@{
-        Configuration       = $null
-        Default             = $null
+        Private             = [pscustomobject]@{ Configuration = $null; Default = $null }
+        Public              = [pscustomobject]@{ Configuration = $null; Default = $null }
         OtherDefaults       = @()
         Repositories        = @(
-            [pscustomobject]@{ Name = 'repo-a'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
-            [pscustomobject]@{ Name = 'repo-b'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+            [pscustomobject]@{ Id = 101; Name = 'repo-a'; Visibility = 'private'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'private'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
         )
         SkippedRepositories = @()
     }

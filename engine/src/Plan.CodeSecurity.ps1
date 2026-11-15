@@ -32,7 +32,7 @@ function Get-CodeSecurityAction {
     $base = "orgs/$($Config.organization)/code-security/configurations"
     $desired = Get-ConfiguredValue -Config $Config -Section 'codeSecurity.private.settings'
 
-    if ($null -eq $Current.Configuration) {
+    if ($null -eq $Current.Private.Configuration) {
         # The id is known only after the create call; Invoke-GitHubOrgPlan replaces the token.
         $path = "$base/{configuration_id}"
         $enforcement = [string]$section.enforcement
@@ -51,19 +51,19 @@ function Get-CodeSecurityAction {
         }
     }
     else {
-        $path = "$base/$($Current.Configuration.Id)"
+        $path = "$base/$($Current.Private.Configuration.Id)"
         $changed = [ordered]@{}
         $changes = [System.Collections.Generic.List[string]]::new()
-        if ([string]$section.description -cne $Current.Configuration.Description) {
+        if ([string]$section.description -cne $Current.Private.Configuration.Description) {
             $changed.description = [string]$section.description
-            $changes.Add("description: '$($Current.Configuration.Description)' -> '$($section.description)'")
+            $changes.Add("description: '$($Current.Private.Configuration.Description)' -> '$($section.description)'")
         }
-        if ([string]$section.enforcement -cne $Current.Configuration.Enforcement) {
+        if ([string]$section.enforcement -cne $Current.Private.Configuration.Enforcement) {
             $changed.enforcement = [string]$section.enforcement
-            $changes.Add("enforcement: $(Format-SettingValue $Current.Configuration.Enforcement) -> $($section.enforcement)")
+            $changes.Add("enforcement: $(Format-SettingValue $Current.Private.Configuration.Enforcement) -> $($section.enforcement)")
         }
         foreach ($field in $desired.Keys) {
-            $currentValue = $Current.Configuration.Settings[$field]
+            $currentValue = $Current.Private.Configuration.Settings[$field]
             if ($currentValue -cne $desired[$field]) {
                 $changed[$field] = $desired[$field]
                 $changes.Add("${field}: $(Format-SettingValue $currentValue) -> $($desired[$field])")
@@ -83,11 +83,11 @@ function Get-CodeSecurityAction {
 
     $wanted = $script:CodeSecurityVisibilities.private.Default
     # Not being a default is the same as 'none'.
-    $currentDefault = if ($Current.Default) { [string]$Current.Default } else { 'none' }
+    $currentDefault = if ($Current.Private.Default) { [string]$Current.Private.Default } else { 'none' }
     if ($wanted -cne $currentDefault) {
         $replaced = @($Current.OtherDefaults | Where-Object { Test-DefaultOverlap -First $wanted -Second $_.DefaultForNewRepos } |
                 ForEach-Object { "'$($_.Name)' ($($_.DefaultForNewRepos))" })
-        $summary = "~ make code security configuration '$name' the default for new repositories: $(Format-SettingValue $Current.Default) -> $wanted"
+        $summary = "~ make code security configuration '$name' the default for new repositories: $(Format-SettingValue $Current.Private.Default) -> $wanted"
         if ($replaced.Count -gt 0) {
             $summary += "; replaces $($replaced -join ', ')"
         }
@@ -125,8 +125,8 @@ function Get-CodeSecurityWarning {
     $name = [string]$Config.codeSecurity.private.name
     $page = "https://github.com/organizations/$($Config.organization)/settings/security_products"
     $ownId = $null
-    if ($CodeSecurity.Configuration) {
-        $ownId = $CodeSecurity.Configuration.Id
+    if ($CodeSecurity.Private.Configuration) {
+        $ownId = $CodeSecurity.Private.Configuration.Id
     }
     foreach ($repository in @($CodeSecurity.Repositories)) {
         if ($null -eq $repository.ConfigurationId) {

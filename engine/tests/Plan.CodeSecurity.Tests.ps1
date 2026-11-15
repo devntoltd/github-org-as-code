@@ -38,7 +38,7 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
     It 'updates the enforcement of an existing configuration' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
-        $codeSecurity.Configuration.Enforcement = 'unenforced'
+        $codeSecurity.Private.Configuration.Enforcement = 'unenforced'
 
         $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
 
@@ -54,8 +54,8 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
     It 'updates only the differing fields of an existing configuration' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
-        $codeSecurity.Configuration.Settings.dependabot_security_updates = 'disabled'
-        $codeSecurity.Configuration.Description = 'old'
+        $codeSecurity.Private.Configuration.Settings.dependabot_security_updates = 'disabled'
+        $codeSecurity.Private.Configuration.Description = 'old'
 
         $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
 
@@ -69,7 +69,7 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
     It 'enables private vulnerability reporting in an existing configuration' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
-        $codeSecurity.Configuration.Settings.private_vulnerability_reporting = 'disabled'
+        $codeSecurity.Private.Configuration.Settings.private_vulnerability_reporting = 'disabled'
 
         $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
 
@@ -79,7 +79,7 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
     It 'names the configurations it replaces as default' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
-        $codeSecurity.Default = $null
+        $codeSecurity.Private.Default = $null
         $codeSecurity.OtherDefaults = @(
             [pscustomobject]@{ Name = 'legacy'; DefaultForNewRepos = 'private_and_internal' }
         )
@@ -93,7 +93,7 @@ Describe 'Get-GitHubOrgPlan: code security' {
 
     It 'does not name a default whose visibility does not overlap' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
-        $codeSecurity.Default = $null
+        $codeSecurity.Private.Default = $null
         $codeSecurity.OtherDefaults = @([pscustomobject]@{ Name = 'legacy'; DefaultForNewRepos = 'public' })
 
         $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
