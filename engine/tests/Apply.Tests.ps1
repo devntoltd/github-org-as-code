@@ -40,12 +40,12 @@ Describe 'Invoke-GitHubOrgPlan' {
 
     It 'sends a one-pattern list as a JSON array' {
         $config = Get-TestGitHubOrgConfig
-        $config.actions.selected.patterns_allowed = @('azure/login@*')
+        $config.actions.selected.patterns_allowed = @('octo-tools/login-action@*')
         $plan = @(Get-GitHubOrgPlan -Config $config -CurrentState (Get-MatchingTestGitHubOrgState))
 
         Invoke-GitHubOrgPlan -Plan $plan
 
-        @(Get-TestGhCall)[0].Input | Should -Match '"patterns_allowed":\["azure/login@\*"\]'
+        @(Get-TestGhCall)[0].Input | Should -Match '"patterns_allowed":\["octo-tools/login-action@\*"\]'
     }
 
     It 'stops at the first error' {

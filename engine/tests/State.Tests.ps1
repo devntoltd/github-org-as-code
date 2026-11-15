@@ -120,7 +120,7 @@ Describe 'Get-GitHubOrgState' {
         $state.Settings.default_repository_permission | Should -Be 'none'
         $state.Settings.two_factor_requirement_enabled | Should -BeTrue
         $state.Actions.allowed_actions | Should -Be 'selected'
-        ($state.SelectedActions.patterns_allowed -join ',') | Should -Be 'azure/login@*,octo-org/octo-action@*'
+        ($state.SelectedActions.patterns_allowed -join ',') | Should -Be 'octo-tools/login-action@*,octo-org/octo-action@*'
         $state.Workflow.default_workflow_permissions | Should -Be 'read'
     }
 

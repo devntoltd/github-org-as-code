@@ -82,8 +82,9 @@ function Join-ShapePath {
 
 function Test-ShapePattern {
     # The patterns are also the JSON Schema patterns (ECMAScript), where '$' matches only at the end of the value.
-    # In .NET it also matches before a final newline, so "name`n" would pass here and fail later in an Azure or
-    # GitHub call; '\z' is the .NET anchor with the ECMAScript meaning. Case-sensitive: Azure and GitHub are.
+    # In .NET it also matches before a final newline, so "name`n" would pass here and fail later in a GitHub
+    # call; '\z' is the .NET anchor with the ECMAScript meaning. Case-sensitive, as the schema checks it: a pattern
+    # names the letters it allows, and whether two values are the same ignoring case is for Unique to say.
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Value,
         [Parameter(Mandatory)][string]$Pattern
@@ -156,7 +157,7 @@ function Get-ShapeDuplicateError {
 }
 
 function Get-ShapeProperty {
-    # The property named exactly Name, or $null. Case-sensitive: 'subscriptionID' must not pass for 'subscriptionId'.
+    # The property named exactly Name, or $null. Case-sensitive: 'configversion' must not pass for 'configVersion'.
     # The indexer looks up case-insensitively, and an object holds no two names that differ only in case
     # (ConvertFrom-Json rejects them), so the one it finds is the only candidate.
     param(
@@ -276,7 +277,7 @@ function Test-ShapeNode {
             }
         }
         'enum' {
-            # Case-sensitive: Azure and GitHub expect the exact value.
+            # Case-sensitive: GitHub expects the exact value.
             if ($Value -isnot [string]) {
                 # As JSON: a list or a boolean printed as text would look like a valid value.
                 $Errors.Add("$label must be one of $($Node.Values -join ', '), got $(Format-ShapeValue $Value).")

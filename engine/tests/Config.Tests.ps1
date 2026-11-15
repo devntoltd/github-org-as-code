@@ -144,7 +144,7 @@ Describe 'Test-GitHubOrgConfig' {
         $config.settings.members_can_create_repositories = 'false'
         $config.settings.default_repository_permission = 'Read'
         $config.actions.enabled_repositories = 'selected'
-        $config.actions.selected.patterns_allowed = @('azure/login@*', 'has space', '')
+        $config.actions.selected.patterns_allowed = @('octo-tools/login-action@*', 'has space', '')
         $config.actions.workflow.can_approve_pull_request_reviews = 1
 
         $errors = @(Test-GitHubOrgConfig -Config $config)
@@ -185,7 +185,7 @@ Describe 'Test-GitHubOrgConfig' {
 
     It 'rejects <Name>' -ForEach @(
         @{ Name = 'a section that is not an object'; Mutate = { param($c) $c.actions = 'all' }; Path = 'actions'; Part = @('"all"') }
-        @{ Name = 'a pattern list that is not a list'; Mutate = { param($c) $c.actions.selected.patterns_allowed = 'azure/login@*' }; Path = 'actions.selected.patterns_allowed'; Part = @('"azure/login@*"') }
+        @{ Name = 'a pattern list that is not a list'; Mutate = { param($c) $c.actions.selected.patterns_allowed = 'octo-tools/login-action@*' }; Path = 'actions.selected.patterns_allowed'; Part = @('"octo-tools/login-action@*"') }
         @{ Name = 'a nested section set to null'; Mutate = { param($c) $c.actions.workflow = $null }; Path = 'actions.workflow'; Part = @() }
         @{ Name = 'a top-level section set to null'; Mutate = { param($c) $c.settings = $null }; Path = 'settings'; Part = @() }
         @{ Name = 'an organization that is not a string'; Mutate = { param($c) $c.organization = @('contoso') }; Path = 'organization'; Part = @('["contoso"]') }
@@ -379,7 +379,7 @@ Describe 'Test-GitHubOrgConfig' {
             '{ "slug": "octo-app", "repositorySelection": "all", "permissions": {} }' | ConvertFrom-Json
             '{ "slug": "octo-app", "repositorySelection": "all", "permissions": {} }' | ConvertFrom-Json
         )
-        $config.actions.selected.patterns_allowed = @('azure/login@*', 'Azure/Login@*')
+        $config.actions.selected.patterns_allowed = @('octo-tools/login-action@*', 'Octo-Tools/Login-Action@*')
 
         $errors = @(Test-GitHubOrgConfig -Config $config)
 
@@ -388,7 +388,7 @@ Describe 'Test-GitHubOrgConfig' {
         Assert-ConfigError -Errors $errors -Path 'inventory.apps' -Part "'octo-app'"
         Assert-ConfigError -Errors $errors -Path 'inventory.webhookHosts' -Part "'HOOKS.example.com'"
         Assert-ConfigError -Errors $errors -Path 'inventory.outsideCollaborators' -Part "'HUBOT'"
-        Assert-ConfigError -Errors $errors -Path 'actions.selected.patterns_allowed' -Part "'Azure/Login@*'"
+        Assert-ConfigError -Errors $errors -Path 'actions.selected.patterns_allowed' -Part "'Octo-Tools/Login-Action@*'"
     }
 
     Context 'exceptions' {
