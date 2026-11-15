@@ -1212,7 +1212,7 @@
                 },
                 "private_vulnerability_reporting": {
                   "type": "string",
-                  "markdownDescription": "Recommended: `\"enabled\"`. A researcher can report a vulnerability of a public repository privately instead of in a public issue.",
+                  "markdownDescription": "Recommended: `\"enabled\"`. GitHub offers it on public repositories only; enabled here, a private repository made public later has it from the start.",
                   "default": "enabled",
                   "enum": [
                     "enabled",

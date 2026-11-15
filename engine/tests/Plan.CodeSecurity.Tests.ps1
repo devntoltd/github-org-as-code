@@ -183,6 +183,31 @@ Describe 'Get-GitHubOrgPlan: code security' {
         @($plan[0].Body.selected_repository_ids) | Should -Be @(101)
     }
 
+    It 'attaches at most 250 repositories per call' {
+        $codeSecurity = Get-MatchingTestCodeSecurityState
+        $codeSecurity.Repositories = @(foreach ($i in 1..251) {
+                [pscustomobject]@{ Id = $i; Name = "repo-$i"; Visibility = 'private'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+            })
+
+        $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
+
+        ($plan.Action -join ',') | Should -Be 'AttachCodeSecurityConfiguration,AttachCodeSecurityConfiguration'
+        @($plan[0].Body.selected_repository_ids).Count | Should -Be 250
+        @($plan[1].Body.selected_repository_ids) | Should -Be @(251)
+        $plan[1].Summary | Should -BeLike '*: repo-251'
+    }
+
+    It 'names the other configuration of the engine it replaces as default' {
+        $codeSecurity = Get-MatchingTestCodeSecurityState
+        $codeSecurity.Private.Default = 'all'
+        $codeSecurity.Public.Default = $null
+
+        $plan = Get-TestCodeSecurityPlan -CodeSecurity $codeSecurity
+
+        $plan.Count | Should -Be 2
+        $plan[1].Summary | Should -BeLike "*: <none> -> public; replaces 'baseline' (all)"
+    }
+
     It 'attaches an existing configuration by its id' {
         $codeSecurity = Get-MatchingTestCodeSecurityState
         $codeSecurity.Repositories[1].ConfigurationId = $null

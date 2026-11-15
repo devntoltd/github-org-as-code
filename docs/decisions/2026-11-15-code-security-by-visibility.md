@@ -1,7 +1,7 @@
 # Code security configurations by repository visibility
 
 Date: 2026-11-15
-Status: implemented
+Status: approved
 
 Builds on [github-org-bootstrap](2026-11-13-github-org-bootstrap-design.md), which gave the engine one code security
 configuration for every repository (issue #7).

@@ -234,7 +234,7 @@ Describe 'Test-GitHubOrgConfig' {
         $config.codeSecurity.public.name = 'Baseline'
 
         Test-GitHubOrgConfig -Config $config |
-            Should -Be "codeSecurity.public.name 'Baseline' is codeSecurity.private.name 'baseline' in another case; GitHub keeps configuration names unique whatever their case, so give the two configurations different names."
+            Should -Be "codeSecurity.public.name 'Baseline' and codeSecurity.private.name 'baseline' are the same name when case is ignored; GitHub keeps configuration names unique whatever their case, so give the two configurations different names."
     }
 
     It 'rejects two equal code security names' {
@@ -242,7 +242,7 @@ Describe 'Test-GitHubOrgConfig' {
         $config.codeSecurity.public.name = 'baseline'
 
         Test-GitHubOrgConfig -Config $config |
-            Should -Be "codeSecurity.public.name 'baseline' is also codeSecurity.private.name; give the two configurations different names."
+            Should -BeLike "codeSecurity.public.name 'baseline' and codeSecurity.private.name 'baseline' are the same name*"
     }
 
     It 'rejects a public email that is not an address: <Json>' -ForEach @(

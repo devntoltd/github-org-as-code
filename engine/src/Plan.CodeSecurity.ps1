@@ -4,6 +4,7 @@
 # (https://docs.github.com/en/code-security/reference/security-at-scale/configuration-statuses). Any other status is a
 # warning, a status GitHub adds later included; 'failed' has its own.
 $script:CodeSecurityStatusesInEffect = @('attached', 'attaching', 'updating', 'enforced', 'enterprise_enforced')
+$script:CodeSecurityAttachBatch = 250
 $script:CodeSecurityStatusMeanings = @{
     removed               = 'a repository admin changed a setting it controls'
     removed_by_enterprise = 'an enterprise configuration conflicts with it'
@@ -103,7 +104,10 @@ function Get-CodeSecurityConfigurationAction {
     # Not being a default is the same as 'none'.
     $currentDefault = if ($own.Default) { [string]$own.Default } else { 'none' }
     if ($wanted -cne $currentDefault) {
-        $replaced = @($Current.OtherDefaults | Where-Object { Test-DefaultOverlap -First $wanted -Second $_.DefaultForNewRepos } |
+        # The other defaults, the other configuration of the engine included.
+        $defaults = @($Current.OtherDefaults) + @($script:CodeSecurityVisibilities.Keys | Where-Object { $_ -ne $Key -and $Current.$_.Configuration -and $Current.$_.Default } |
+                ForEach-Object { [pscustomobject]@{ Name = $Current.$_.Configuration.Name; DefaultForNewRepos = $Current.$_.Default } })
+        $replaced = @($defaults | Where-Object { $_ -and (Test-DefaultOverlap -First $wanted -Second $_.DefaultForNewRepos) } |
                 ForEach-Object { "'$($_.Name)' ($($_.DefaultForNewRepos))" })
         $summary = "~ make code security configuration '$name' the default for new repositories: $(Format-SettingValue $own.Default) -> $wanted"
         if ($replaced.Count -gt 0) {
@@ -119,16 +123,18 @@ function Get-CodeSecurityConfigurationAction {
         }
     }
 
-    # GitHub rejects 'selected' without ids, so a visibility without such repositories plans no attach.
+    # GitHub rejects 'selected' without ids, so a visibility without such repositories plans no attach. At most
+    # $script:CodeSecurityAttachBatch ids per call: the limit GitHub documents for detach, the attach documents none.
     $unattached = @($Current.Repositories | Where-Object { $null -eq $_.ConfigurationId -and (Get-CodeSecurityVisibilityKey -Visibility $_.Visibility) -eq $Key })
-    if ($unattached.Count -gt 0) {
+    for ($start = 0; $start -lt $unattached.Count; $start += $script:CodeSecurityAttachBatch) {
+        $batch = @($unattached | Select-Object -Skip $start -First $script:CodeSecurityAttachBatch)
         [pscustomobject]@{
             Action   = 'AttachCodeSecurityConfiguration'
             Target   = $name
             Method   = 'POST'
             Endpoint = "$path/attach"
-            Body     = [ordered]@{ scope = 'selected'; selected_repository_ids = [long[]]@($unattached | ForEach-Object { $_.Id }) }
-            Summary  = "+ attach code security configuration '$name' to the $($visibility.Label) repositories without one: $(@($unattached.Name) -join ', ')"
+            Body     = [ordered]@{ scope = 'selected'; selected_repository_ids = [long[]]@($batch | ForEach-Object { $_.Id }) }
+            Summary  = "+ attach code security configuration '$name' to the $($visibility.Label) repositories without one: $(@($batch.Name) -join ', ')"
         }
     }
 }

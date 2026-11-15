@@ -45,7 +45,8 @@ function Get-CodeSecuritySettingRow {
         @{ Section = "$section.settings"; Field = 'dependency_graph'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Dependabot needs the dependency graph to know what a repository uses.' }
         @{ Section = "$section.settings"; Field = 'dependabot_alerts'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Known vulnerabilities in dependencies are reported.' }
         @{ Section = "$section.settings"; Field = 'dependabot_security_updates'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Dependabot opens pull requests that fix vulnerable dependencies.' }
-        @{ Section = "$section.settings"; Field = 'private_vulnerability_reporting'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'A researcher can report a vulnerability of a public repository privately instead of in a public issue.' }
+        $reporting = if ($key -eq 'public') { 'A researcher can report a vulnerability of a public repository privately instead of in a public issue.' } else { 'GitHub offers it on public repositories only; enabled here, a private repository made public later has it from the start.' }
+        @{ Section = "$section.settings"; Field = 'private_vulnerability_reporting'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = $reporting }
         foreach ($feature in $features) {
             if ($key -eq 'public') {
                 @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = "Free for public repositories: $($feature.Feature)." }
@@ -485,11 +486,8 @@ function Test-GitHubOrgConfig {
     # GitHub keeps configuration names unique whatever their case: the second create would fail.
     $private = [string]$Config.codeSecurity.private.name
     $public = [string]$Config.codeSecurity.public.name
-    if ($private -ceq $public) {
-        $result.Add("codeSecurity.public.name '$public' is also codeSecurity.private.name; give the two configurations different names.")
-    }
-    elseif ($private -eq $public) {
-        $result.Add("codeSecurity.public.name '$public' is codeSecurity.private.name '$private' in another case; GitHub keeps configuration names unique whatever their case, so give the two configurations different names.")
+    if ($private -eq $public) {
+        $result.Add("codeSecurity.public.name '$public' and codeSecurity.private.name '$private' are the same name when case is ignored; GitHub keeps configuration names unique whatever their case, so give the two configurations different names.")
     }
     $result.AddRange([string[]]@(Test-ExceptionList -Exceptions @($Config.exceptions) -Shape $shape -Today $Today))
     $result.AddRange([string[]]@((Get-WorkflowReviewerReport -Config $Config -Today $Today).NotWaived))
