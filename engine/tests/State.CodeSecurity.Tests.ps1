@@ -23,11 +23,12 @@ Describe 'Get-GitHubOrgState: code security' {
 
         $codeSecurity = (Get-GitHubOrgState -Config $script:config).CodeSecurity
 
-        $codeSecurity.Configuration.Id | Should -Be 42
-        $codeSecurity.Configuration.Description | Should -Be 'Free features'
-        $codeSecurity.Configuration.Enforcement | Should -Be 'enforced'
-        $codeSecurity.Configuration.Settings.dependabot_alerts | Should -Be 'enabled'
-        $codeSecurity.Configuration.Settings.Contains('advanced_security') | Should -BeFalse
+        $codeSecurity.Private.Configuration.Id | Should -Be 42
+        $codeSecurity.Private.Configuration.Description | Should -Be 'Free features'
+        $codeSecurity.Private.Configuration.Enforcement | Should -Be 'enforced'
+        $codeSecurity.Private.Configuration.Settings.dependabot_alerts | Should -Be 'enabled'
+        $codeSecurity.Private.Configuration.Settings.Contains('enforcement') | Should -BeFalse
+        $codeSecurity.Public.Configuration | Should -BeNullOrEmpty
     }
 
     It 'stops when an organization configuration differs from the name only in case' {
@@ -37,7 +38,16 @@ Describe 'Get-GitHubOrgState: code security' {
         Register-TestGhRoute -Route $routes
 
         { Get-GitHubOrgState -Config $script:config } |
-            Should -Throw "*code security configuration 'Baseline' of 'contoso' differs from codeSecurity.name 'baseline' only in case; use the same spelling in the config, or rename the configuration at https://github.com/organizations/contoso/settings/security_products*"
+            Should -Throw "*code security configuration 'Baseline' of 'contoso' differs from codeSecurity.private.name 'baseline' only in case; use the same spelling in the config, or rename the configuration at https://github.com/organizations/contoso/settings/security_products*"
+    }
+
+    It 'names the public section when its name differs only in case' {
+        $routes = Add-TestCodeSecurityRoute -Route (Get-TestGhRoute -State (Get-MatchingTestGitHubOrgState)) -Configurations @(
+            Get-TestCodeSecurityConfiguration -Id 43 -Name 'Public-Baseline'
+        )
+        Register-TestGhRoute -Route $routes
+
+        { Get-GitHubOrgState -Config $script:config } | Should -Throw "*differs from codeSecurity.public.name 'public-baseline'*"
     }
 
     It 'stops when the name belongs to <Kind> configuration' -ForEach @(
@@ -50,7 +60,7 @@ Describe 'Get-GitHubOrgState: code security' {
         Register-TestGhRoute -Route $routes
 
         { Get-GitHubOrgState -Config $script:config } |
-            Should -Throw "*'baseline' is the name of $Kind code security configuration; choose another codeSecurity.name*"
+            Should -Throw "*'baseline' is the name of $Kind code security configuration; choose another codeSecurity.private.name*"
     }
 
     It 'finds the configuration on a later page' {
@@ -60,7 +70,7 @@ Describe 'Get-GitHubOrgState: code security' {
         )
         Register-TestGhRoute -Route $routes
 
-        (Get-GitHubOrgState -Config $script:config).CodeSecurity.Configuration.Id | Should -Be 42
+        (Get-GitHubOrgState -Config $script:config).CodeSecurity.Private.Configuration.Id | Should -Be 42
     }
 
     It 'leaves archived repositories out' {
@@ -74,18 +84,25 @@ Describe 'Get-GitHubOrgState: code security' {
         @(Get-TestGhCall | Where-Object { $_.Arguments[3] -like 'repos/contoso/repo-old/code-security*' }).Count | Should -Be 0
     }
 
-    It 'reads the default of the matched configuration and the other defaults' {
+    It 'reads both configurations, their defaults and the other defaults' {
         $routes = Add-TestCodeSecurityRoute -Route (Get-TestGhRoute -State (Get-MatchingTestGitHubOrgState)) -Configurations @(
             Get-TestCodeSecurityConfiguration -Id 42
+            Get-TestCodeSecurityConfiguration -Id 43 -Name 'public-baseline'
         ) -Defaults @(
-            [pscustomobject]@{ default_for_new_repos = 'public'; configuration = (Get-TestCodeSecurityConfiguration -Id 42) }
+            [pscustomobject]@{ default_for_new_repos = 'private_and_internal'; configuration = (Get-TestCodeSecurityConfiguration -Id 42) }
+            [pscustomobject]@{ default_for_new_repos = 'public'; configuration = (Get-TestCodeSecurityConfiguration -Id 43 -Name 'public-baseline') }
             [pscustomobject]@{ default_for_new_repos = 'private_and_internal'; configuration = (Get-TestCodeSecurityConfiguration -Id 7 -Name 'legacy') }
         )
         Register-TestGhRoute -Route $routes
 
         $codeSecurity = (Get-GitHubOrgState -Config $script:config).CodeSecurity
 
-        $codeSecurity.Default | Should -Be 'public'
+        $codeSecurity.Private.Configuration.Id | Should -Be 42
+        $codeSecurity.Private.Default | Should -Be 'private_and_internal'
+        $codeSecurity.Public.Configuration.Id | Should -Be 43
+        $codeSecurity.Public.Configuration.Name | Should -Be 'public-baseline'
+        $codeSecurity.Public.Default | Should -Be 'public'
+        @(Get-TestGhCall | Where-Object { $_.Arguments[3] -eq 'orgs/contoso/code-security/configurations?per_page=100' }).Count | Should -Be 1
         @($codeSecurity.OtherDefaults).Count | Should -Be 1
         $codeSecurity.OtherDefaults[0].Name | Should -Be 'legacy'
         $codeSecurity.OtherDefaults[0].DefaultForNewRepos | Should -Be 'private_and_internal'
@@ -123,6 +140,18 @@ Describe 'Get-GitHubOrgState: code security' {
             Should -Be @('repos/contoso/repo-b/code-security-configuration', 'repos/contoso/repo-e/code-security-configuration')
         @(Get-TestGhCall | Where-Object { $_.Arguments[3] -like '*/configurations/99/repositories*' }).Count | Should -Be 0
         @($codeSecurity.SkippedRepositories).Count | Should -Be 0
+    }
+
+    It 'gives each repository its id and visibility' {
+        $routes = Add-TestCodeSecurityRoute -Route (Get-TestGhRoute -State (Get-MatchingTestGitHubOrgState)) -Repositories ([ordered]@{
+                'repo-a' = $null
+                'repo-b' = $null
+            }) -Visibility @{ 'repo-b' = 'public' }
+        Register-TestGhRoute -Route $routes
+
+        $repositories = @((Get-GitHubOrgState -Config $script:config).CodeSecurity.Repositories)
+
+        ($repositories | ForEach-Object { "$($_.Name)/$($_.Id)/$($_.Visibility)" }) | Should -Be @('repo-a/101/private', 'repo-b/102/public')
     }
 
     It 'reads a repository on its own when its list shows it detached' {

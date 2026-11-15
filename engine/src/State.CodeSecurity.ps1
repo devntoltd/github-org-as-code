@@ -1,48 +1,68 @@
-# Code security reads: the configuration the engine manages, the defaults and the configuration of each repository. Read-only.
+# Code security reads: the two configurations the engine manages, the defaults and the configuration of each
+# repository. Read-only.
+
+function Find-CodeSecurityConfiguration {
+    # The organization configuration of the exact name, $null when there is none, or a stop when the name is taken
+    # otherwise. Names are unique across the organization whatever their case, so creating the configuration would
+    # fail with a less helpful message, and an update never renames one.
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Configurations,
+        [Parameter(Mandatory)][string]$Name,
+        # The config field of the name, such as codeSecurity.public.name.
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Organization
+    )
+
+    $match = $Configurations | Where-Object { $_.target_type -eq 'organization' -and [string]$_.name -ceq $Name } | Select-Object -First 1
+    $taken = $Configurations | Where-Object { [string]$_.name -eq $Name } | Select-Object -First 1
+    if (-not $match -and $taken) {
+        switch ([string]$taken.target_type) {
+            'organization' {
+                throw "The code security configuration '$($taken.name)' of '$Organization' differs from $Path '$Name' only in case; use the same spelling in the config, or rename the configuration at https://github.com/organizations/$Organization/settings/security_products."
+            }
+            'global' { throw "'$Name' is the name of a built-in GitHub code security configuration; choose another $Path." }
+            'enterprise' { throw "'$Name' is the name of an enterprise code security configuration; choose another $Path." }
+            default { throw "'$Name' is the name of a code security configuration of type '$($taken.target_type)'; choose another $Path." }
+        }
+    }
+    return $match
+}
 
 function Read-CodeSecurityState {
-    # The configuration named in the config (organization configurations only, the exact name), which
+    # The configurations named in the config (organization configurations only, the exact names), which
     # configurations are defaults for new repositories, and the configuration of every repository.
     param(
         [Parameter(Mandatory)][string]$Organization,
-        [Parameter(Mandatory)][string]$Name,
+        # Key of $script:CodeSecurityVisibilities (private, public) -> the configuration name of that section.
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Names,
         # From Read-OrgRepository.
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$OrgRepository
     )
 
     Write-StateProgress -Status 'code security configurations'
     $configurations = @(Read-OrgEndpoint -Endpoint "orgs/$Organization/code-security/configurations?per_page=100" -Paginate)
-    $match = $configurations | Where-Object { $_.target_type -eq 'organization' -and [string]$_.name -ceq $Name } | Select-Object -First 1
-    # Names are unique across the organization whatever their case, so creating the configuration would fail with a
-    # less helpful message, and an update never renames one.
-    $taken = $configurations | Where-Object { [string]$_.name -eq $Name } | Select-Object -First 1
-    if (-not $match -and $taken) {
-        switch ([string]$taken.target_type) {
-            'organization' {
-                throw "The code security configuration '$($taken.name)' of '$Organization' differs from codeSecurity.name '$Name' only in case; use the same spelling in the config, or rename the configuration at https://github.com/organizations/$Organization/settings/security_products."
+    $own = [ordered]@{}
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        $match = Find-CodeSecurityConfiguration -Configurations $configurations -Name ([string]$Names[$key]) -Path "codeSecurity.$key.name" -Organization $Organization
+        $configuration = $null
+        if ($match) {
+            $configuration = [pscustomobject]@{
+                Id          = [long]$match.id
+                Name        = [string]$match.name
+                Description = [string]$match.description
+                Enforcement = [string]$match.enforcement
+                Settings    = ConvertTo-FieldMap -Response $match -Section "codeSecurity.$key.settings"
             }
-            'global' { throw "'$Name' is the name of a built-in GitHub code security configuration; choose another codeSecurity.name." }
-            'enterprise' { throw "'$Name' is the name of an enterprise code security configuration; choose another codeSecurity.name." }
-            default { throw "'$Name' is the name of a code security configuration of type '$($taken.target_type)'; choose another codeSecurity.name." }
         }
-    }
-    $configuration = $null
-    if ($match) {
-        $configuration = [pscustomobject]@{
-            Id          = [long]$match.id
-            Name        = [string]$match.name
-            Description = [string]$match.description
-            Enforcement = [string]$match.enforcement
-            Settings    = ConvertTo-FieldMap -Response $match -Section 'codeSecurity.settings'
-        }
+        $own[$key] = [pscustomobject]@{ Configuration = $configuration; Default = $null }
     }
 
     Write-StateProgress -Status 'code security defaults'
-    $default = $null
     $otherDefaults = [System.Collections.Generic.List[object]]::new()
     foreach ($entry in @(Read-OrgEndpoint -Endpoint "orgs/$Organization/code-security/configurations/defaults")) {
-        if ($configuration -and [long]$entry.configuration.id -eq $configuration.Id) {
-            $default = [string]$entry.default_for_new_repos
+        $owner = $own.Values | Where-Object { $_.Configuration -and [long]$entry.configuration.id -eq $_.Configuration.Id } | Select-Object -First 1
+        if ($owner) {
+            $owner.Default = [string]$entry.default_for_new_repos
         }
         else {
             $otherDefaults.Add([pscustomobject]@{ Name = [string]$entry.configuration.name; DefaultForNewRepos = [string]$entry.default_for_new_repos })
@@ -51,7 +71,7 @@ function Read-CodeSecurityState {
 
     # Archived repositories are read-only, so attaching a configuration to them could never succeed and the attach
     # would be planned on every run.
-    $names = [string[]]@($OrgRepository | Where-Object { -not $_.Archived } | ForEach-Object { $_.Name })
+    $active = @($OrgRepository | Where-Object { -not $_.Archived })
     # A handful of list reads instead of one read per repository. The list is documented for organization
     # configurations; it also answers for the built-in GitHub ones (checked 2026-10-04). A repository of an
     # enterprise configuration (not checked), and one a list shows as detached, is read on its own below.
@@ -67,7 +87,8 @@ function Read-CodeSecurityState {
 
     $repositories = [System.Collections.Generic.List[object]]::new()
     $skipped = [System.Collections.Generic.List[string]]::new()
-    foreach ($repository in $names) {
+    foreach ($item in $active) {
+        $repository = $item.Name
         $attached = $listed[$repository]
         if (-not $attached) {
             Write-StateProgress -Status "code security configuration of repository '$repository'"
@@ -85,7 +106,7 @@ function Read-CodeSecurityState {
                 continue
             }
         }
-        $entry = [pscustomobject]@{ Name = $repository; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+        $entry = [pscustomobject]@{ Id = $item.Id; Name = $repository; Visibility = $item.Visibility; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
         if ($attached) {
             $entry.ConfigurationId = [long]$attached.configuration.id
             $entry.ConfigurationName = [string]$attached.configuration.name
@@ -95,8 +116,8 @@ function Read-CodeSecurityState {
     }
 
     return [pscustomobject]@{
-        Configuration       = $configuration
-        Default             = $default
+        Private             = $own.private
+        Public              = $own.public
         OtherDefaults       = $otherDefaults.ToArray()
         Repositories        = $repositories.ToArray()
         SkippedRepositories = $skipped.ToArray()

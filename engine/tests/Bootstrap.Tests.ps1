@@ -59,7 +59,7 @@ Describe 'engine/bootstrap.ps1' {
         Set-TestNativeGhRoute -Directory $script:ghDirectory -Route (Get-TestRoute)
         $path = Join-Path -Path $TestDrive -ChildPath 'other-format.json'
         $config = Get-TestGitHubOrgConfig
-        $config.configVersion = '2.0'
+        $config.configVersion = '3.0'
         $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path -Encoding utf8
 
         $output = & $script:pwsh -NoProfile -NonInteractive -File $script:bootstrap -WhatIf -ConfigPath $path 2>&1 | ForEach-Object { [string]$_ }
@@ -88,7 +88,7 @@ Describe 'engine/bootstrap.ps1' {
         }
 
         $exitCode | Should -Be 0 -Because ($output -join "`n")
-        ($output -join "`n") | Should -Match 'is valid \(config format 1\.0\)\.'
+        ($output -join "`n") | Should -Match 'is valid \(config format 2\.0\)\.'
     }
 
     It 'takes -ManualChecklist and prints the checklist' {

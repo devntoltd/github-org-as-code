@@ -101,16 +101,28 @@ Describe 'Invoke-GitHubOrgPlan: code security' {
         Unregister-TestGhStub
     }
 
-    It 'uses the id of the configuration it created in the later calls' {
-        Register-TestGhRoute -Route @{
-            'POST orgs/contoso/code-security/configurations'            = Get-TestGhResponse -Body @{ id = 99; name = 'baseline' }
-            'PUT orgs/contoso/code-security/configurations/99/defaults' = Get-TestGhResponse -Body @{ default_for_new_repos = 'all' }
-            'POST orgs/contoso/code-security/configurations/99/attach'  = [pscustomobject]@{ ExitCode = 0; Output = '{}' }
-        }
+    It 'gives each configuration the id of its own create' {
+        # The private configuration is created first (id 98), then the public one (id 99).
+        $creates = [System.Collections.Generic.List[int]]::new()
+        Register-TestGhStub -Responder {
+            param([string[]]$Arguments)
+            $key = "$($Arguments[2]) $($Arguments[3])"
+            if ($key -eq 'POST orgs/contoso/code-security/configurations') {
+                $creates.Add(1)
+                return [pscustomobject]@{ ExitCode = 0; Output = "{`"id`": $(97 + $creates.Count)}" }
+            }
+            if ($key -match '^(PUT|POST) orgs/contoso/code-security/configurations/(98|99)/(defaults|attach)$') {
+                return [pscustomobject]@{ ExitCode = 0; Output = '{}' }
+            }
+            [pscustomobject]@{ ExitCode = 1; Output = "gh: Not Found (HTTP 404): $key" }
+        }.GetNewClosure()
 
         Invoke-GitHubOrgPlan -Plan $script:plan
 
         (@(Get-TestGhCall) | ForEach-Object { "$($_.Arguments[2]) $($_.Arguments[3])" }) | Should -Be @(
+            'POST orgs/contoso/code-security/configurations'
+            'PUT orgs/contoso/code-security/configurations/98/defaults'
+            'POST orgs/contoso/code-security/configurations/98/attach'
             'POST orgs/contoso/code-security/configurations'
             'PUT orgs/contoso/code-security/configurations/99/defaults'
             'POST orgs/contoso/code-security/configurations/99/attach'

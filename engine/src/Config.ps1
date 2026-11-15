@@ -20,6 +20,50 @@ $script:Sections = [ordered]@{
     'copilotCloudAgent'               = @{ Path = '/copilot/coding-agent/permissions'; Action = 'SetCopilotCloudAgentAccess'; Method = 'PUT'; StateKey = 'CopilotCloudAgent'; Label = 'set Copilot cloud agent repository access'; Reading = 'Copilot cloud agent repository access' }
 }
 
+# The two code security configurations, in the order of their actions: the default for new repositories the engine
+# gives each, and the visibilities of the repositories it is attached to.
+$script:CodeSecurityVisibilities = [ordered]@{
+    private = @{ Default = 'private_and_internal'; Repositories = @('private', 'internal'); Label = 'private and internal' }
+    public  = @{ Default = 'public'; Repositories = @('public'); Label = 'public' }
+}
+
+function Get-CodeSecuritySettingRow {
+    # The rows of codeSecurity.private and codeSecurity.public: the same fields, recommended apart where a feature is
+    # free only for public repositories.
+    # GitHub turns a feature on only with its product (HTTP 400 otherwise): Test-CodeSecurityProduct checks it. The
+    # products are advanced_security, the one field GitHub answers for them: it accepts secret_protection and
+    # code_security in a write but never returns them, so a row of either would be planned again on every run.
+    $features = @(
+        @{ Field = 'advanced_security'; Feature = 'the Secret Protection and Code Security products, which the features below need'; License = 'Secret Protection or Code Security' }
+        @{ Field = 'secret_scanning'; Feature = 'secret scanning'; License = 'Secret Protection' }
+        @{ Field = 'secret_scanning_push_protection'; Feature = 'push protection blocks a push that contains a secret'; License = 'Secret Protection' }
+        @{ Field = 'code_scanning_default_setup'; Feature = 'CodeQL default setup scans the code'; License = 'Code Security' }
+    )
+    $states = @('enabled', 'disabled', 'not_set')
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        $label = $script:CodeSecurityVisibilities[$key].Label
+        $section = "codeSecurity.$key"
+        @{ Section = $section; Field = 'name'; Type = 'string'; Mode = 'apply'; Page = 'security_products'; Pattern = '^\S(.*\S)?$'; Rule = 'a non-empty name without leading or trailing whitespace'; Description = "Name of the code security configuration of the $label repositories."; NoRecommendation = 'Project data: the name of the configuration.' }
+        @{ Section = $section; Field = 'description'; Type = 'string'; Mode = 'apply'; Page = 'security_products'; Nullable = $true; Description = 'Description of the configuration, or null.'; NoRecommendation = 'Project data: the description of the configuration.' }
+        @{ Section = $section; Field = 'enforcement'; Type = 'enum'; Values = @('enforced', 'unenforced'); Mode = 'apply'; Page = 'security_products'; Recommended = 'enforced'; Why = 'Repository admins cannot turn the features off.' }
+        @{ Section = "$section.settings"; Field = 'dependency_graph'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Dependabot needs the dependency graph to know what a repository uses.' }
+        @{ Section = "$section.settings"; Field = 'dependabot_alerts'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Known vulnerabilities in dependencies are reported.' }
+        @{ Section = "$section.settings"; Field = 'dependabot_security_updates'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Dependabot opens pull requests that fix vulnerable dependencies.' }
+        $reporting = if ($key -eq 'public') { 'A researcher can report a vulnerability of a public repository privately instead of in a public issue.' } else { 'GitHub offers it on public repositories only; enabled here, a private repository made public later has it from the start.' }
+        @{ Section = "$section.settings"; Field = 'private_vulnerability_reporting'; Type = 'enum'; Values = $states; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = $reporting }
+        foreach ($feature in $features) {
+            # advanced_security takes enabled or disabled; its other values are deprecated.
+            $values = if ($feature.Field -eq 'advanced_security') { @('enabled', 'disabled') } else { $states }
+            if ($key -eq 'public') {
+                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $values; Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = "Free for public repositories: $($feature.Feature)." }
+            }
+            else {
+                @{ Section = "$section.settings"; Field = $feature.Field; Type = 'enum'; Values = $values; Mode = 'apply'; Page = 'security_products'; Recommended = 'disabled'; Why = "Needs a paid $($feature.License) license for private and internal repositories, so the configuration keeps it off; enable it when the organization has one." }
+            }
+        }
+    }
+}
+
 # Every field the engine knows, under GitHub's own name. Mode 'apply': the engine sets it. Mode 'check': GitHub's API
 # cannot change it, so a mismatch is a warning that tells an owner where to change it. The UI keys, spelled as the web UI
 # shows them: Page, the page that holds the
@@ -75,14 +119,7 @@ $script:SettingDefinitions = @(
     @{ Section = 'actions.cache'; Field = 'retention_days'; Type = 'integer'; Minimum = 1; Maximum = 365; Mode = 'manual'; Page = 'actions'; UiGroup = 'Cache'; UiLabel = 'Cache retention'; Why = 'How long an unused cache of a workflow is kept; repositories can set less, never more.'; NoRecommendation = 'Project data: GitHub''s default suits most projects; a longer retention keeps more cache, billed as storage.' }
     @{ Section = 'actions.cache'; Field = 'size_limit_gb'; Type = 'integer'; Minimum = 1; Mode = 'manual'; Page = 'actions'; UiGroup = 'Cache'; UiLabel = 'Cache size eviction limit'; Why = 'The cache storage of a repository before GitHub evicts the oldest caches; storage beyond the included amount is charged.'; NoRecommendation = 'Project data: GitHub''s default suits most projects; a larger cache is billed as storage.' }
     @{ Section = 'copilotCloudAgent'; Field = 'enabled_repositories'; Type = 'enum'; Values = @('all', 'selected', 'none'); Mode = 'apply'; Page = 'copilot/coding_agent'; UiGroup = 'Repository access'; Options = @{ none = 'No repositories' }; Recommended = 'none'; Why = 'The cloud agent changes code and opens pull requests from tasks: it works only where it is needed.' }
-    @{ Section = 'codeSecurity'; Field = 'name'; Type = 'string'; Mode = 'apply'; Page = 'security_products'; Pattern = '^\S(.*\S)?$'; Rule = 'a non-empty name without leading or trailing whitespace'; Description = 'Name of the code security configuration the engine manages.'; NoRecommendation = 'Project data: the name of the configuration.' }
-    @{ Section = 'codeSecurity'; Field = 'description'; Type = 'string'; Mode = 'apply'; Page = 'security_products'; Nullable = $true; Description = 'Description of the configuration, or null.'; NoRecommendation = 'Project data: the description of the configuration.' }
-    @{ Section = 'codeSecurity'; Field = 'default_for_new_repos'; Type = 'enum'; Values = @('all', 'none', 'private_and_internal', 'public'); Mode = 'apply'; Page = 'security_products'; Recommended = 'all'; Why = 'Every new repository gets the configuration without anyone remembering to attach it.' }
-    @{ Section = 'codeSecurity'; Field = 'enforcement'; Type = 'enum'; Values = @('enforced', 'unenforced'); Mode = 'apply'; Page = 'security_products'; Recommended = 'enforced'; Why = 'Repository admins cannot turn the features off.' }
-    @{ Section = 'codeSecurity.settings'; Field = 'dependency_graph'; Type = 'enum'; Values = @('enabled', 'disabled', 'not_set'); Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Dependabot needs the dependency graph to know what a repository uses.' }
-    @{ Section = 'codeSecurity.settings'; Field = 'dependabot_alerts'; Type = 'enum'; Values = @('enabled', 'disabled', 'not_set'); Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Known vulnerabilities in dependencies are reported.' }
-    @{ Section = 'codeSecurity.settings'; Field = 'dependabot_security_updates'; Type = 'enum'; Values = @('enabled', 'disabled', 'not_set'); Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'Dependabot opens pull requests that fix vulnerable dependencies.' }
-    @{ Section = 'codeSecurity.settings'; Field = 'private_vulnerability_reporting'; Type = 'enum'; Values = @('enabled', 'disabled', 'not_set'); Mode = 'apply'; Page = 'security_products'; Recommended = 'enabled'; Why = 'A researcher can report a vulnerability of a public repository privately instead of in a public issue.' }
+    Get-CodeSecuritySettingRow
     @{ Section = 'ruleset'; Field = 'name'; Type = 'string'; Mode = 'apply'; Page = 'rules'; Pattern = '^\S(.*\S)?$'; Rule = 'a non-empty name without leading or trailing whitespace'; Description = 'Name of the organization ruleset the engine manages; it protects the default branch of every repository.'; NoRecommendation = 'Project data: the name of the ruleset.' }
     @{ Section = 'ruleset'; Field = 'enforcement'; Type = 'enum'; Values = @('active', 'disabled'); Mode = 'apply'; Page = 'rules'; Recommended = 'active'; Why = 'A disabled ruleset protects no branch.' }
     @{ Section = 'ruleset.bypass'; Field = 'organizationAdmin'; Type = 'enum'; Values = @('pull_request', 'none'); Mode = 'apply'; Page = 'rules'; Recommended = 'pull_request'; Why = 'An organization owner can merge a pull request without the approvals, which GitHub records, but never push to a default branch directly; none leaves no way past the rules.' }
@@ -215,7 +252,7 @@ $script:ConfigSections = @($script:SettingDefinitions | ForEach-Object { $_.Sect
 # The config format this engine reads: a config of the same major and a minor not above this one. The major changes when
 # a config needs an edit (a key added, removed, renamed or moved, a value no longer allowed); the minor when every
 # config of the format stays valid and means the same. Independent of the release version of the engine.
-$script:ConfigFormatVersion = '1.0'
+$script:ConfigFormatVersion = '2.0'
 
 # The top-level keys of the config, in the order of github.json; exceptions comes last. The sections by subject
 # are in the shape once a row is in them.
@@ -452,9 +489,39 @@ function Test-GitHubOrgConfig {
             $result.Add("ruleset.rules.workflows: '$($workflow.repository)/$($workflow.path)' is listed more than once.")
         }
     }
+    # GitHub keeps configuration names unique whatever their case: the second create would fail.
+    $private = [string]$Config.codeSecurity.private.name
+    $public = [string]$Config.codeSecurity.public.name
+    if ($private -eq $public) {
+        $result.Add("codeSecurity.public.name '$public' and codeSecurity.private.name '$private' are the same name when case is ignored; GitHub keeps configuration names unique whatever their case, so give the two configurations different names.")
+    }
+    $result.AddRange([string[]]@(Test-CodeSecurityProduct -Config $Config))
     $result.AddRange([string[]]@(Test-ExceptionList -Exceptions @($Config.exceptions) -Shape $shape -Today $Today))
     $result.AddRange([string[]]@((Get-WorkflowReviewerReport -Config $Config -Today $Today).NotWaived))
     return $result.ToArray()
+}
+
+# Feature -> the field of the product a code security configuration must turn on with it.
+$script:CodeSecurityProducts = [ordered]@{
+    secret_scanning                 = 'advanced_security'
+    secret_scanning_push_protection = 'advanced_security'
+    code_scanning_default_setup     = 'advanced_security'
+}
+
+function Test-CodeSecurityProduct {
+    # GitHub answers 400 to a configuration that turns on a feature but not its product ("advanced_security or
+    # code_security must be set to enabled when any Code Security features are enabled"), after the confirmation.
+    param([Parameter(Mandatory)][object]$Config)
+
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        $settings = $Config.codeSecurity.$key.settings
+        foreach ($feature in $script:CodeSecurityProducts.Keys) {
+            $product = $script:CodeSecurityProducts[$feature]
+            if ($settings.$feature -ceq 'enabled' -and $settings.$product -cne 'enabled') {
+                "codeSecurity.$key.settings.$feature is enabled, so codeSecurity.$key.settings.$product must be enabled too: GitHub turns on a feature of Code Security or Secret Protection only with the products."
+            }
+        }
+    }
 }
 
 function Get-WorkflowReviewerReport {

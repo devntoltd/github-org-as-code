@@ -14,7 +14,8 @@ function Invoke-GitHubOrgPlan {
 
     try {
         $index = 0
-        # Set by CreateCodeSecurityConfiguration; later actions reference it as {configuration_id}.
+        # Set by CreateCodeSecurityConfiguration; later actions reference it as {configuration_id}. The plan puts the
+        # actions of each configuration right after its create (Get-CodeSecurityAction), so the latest create is theirs.
         $createdId = $null
         foreach ($action in $Plan) {
             Write-ApplyProgress -Index $index -Total $Plan.Count -Summary $action.Summary

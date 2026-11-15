@@ -7,7 +7,7 @@ function Get-TestGitHubOrgConfig {
     # parsed from JSON like the real config.
     return @'
 {
-  "configVersion": "1.0",
+  "configVersion": "2.0",
   "organization": "contoso",
   "inventory": {
     "owners": ["octocat", "hubot"],
@@ -146,15 +146,35 @@ function Get-TestGitHubOrgConfig {
     "partnerAgents": { "claude": false, "codex": false }
   },
   "codeSecurity": {
-    "name": "baseline",
-    "description": "Free features",
-    "default_for_new_repos": "all",
-    "enforcement": "enforced",
-    "settings": {
-      "dependency_graph": "enabled",
-      "dependabot_alerts": "enabled",
-      "dependabot_security_updates": "enabled",
-      "private_vulnerability_reporting": "enabled"
+    "private": {
+      "name": "baseline",
+      "description": "Free features",
+      "enforcement": "enforced",
+      "settings": {
+        "dependency_graph": "enabled",
+        "dependabot_alerts": "enabled",
+        "dependabot_security_updates": "enabled",
+        "private_vulnerability_reporting": "enabled",
+        "advanced_security": "disabled",
+        "secret_scanning": "disabled",
+        "secret_scanning_push_protection": "disabled",
+        "code_scanning_default_setup": "disabled"
+      }
+    },
+    "public": {
+      "name": "public-baseline",
+      "description": "Free features of public repositories",
+      "enforcement": "enforced",
+      "settings": {
+        "dependency_graph": "enabled",
+        "dependabot_alerts": "enabled",
+        "dependabot_security_updates": "enabled",
+        "private_vulnerability_reporting": "enabled",
+        "advanced_security": "enabled",
+        "secret_scanning": "enabled",
+        "secret_scanning_push_protection": "enabled",
+        "code_scanning_default_setup": "enabled"
+      }
     }
   },
   "ruleset": {
@@ -524,27 +544,33 @@ function Get-TestGhRoute {
     # The code security reads, answering like GitHub from the state's code security.
     if ($State.PSObject.Properties['CodeSecurity'] -and $null -ne $State.CodeSecurity) {
         $codeSecurity = $State.CodeSecurity
-        $configurations = @()
-        $defaults = @()
-        if ($codeSecurity.Configuration) {
-            $own = $codeSecurity.Configuration
-            $configuration = [pscustomobject]@{ id = $own.Id; name = $own.Name; target_type = 'organization'; description = $own.Description; enforcement = $own.Enforcement }
-            foreach ($field in $own.Settings.Keys) {
-                $configuration | Add-Member -NotePropertyName $field -NotePropertyValue $own.Settings[$field]
+        $configurations = [System.Collections.Generic.List[object]]::new()
+        $defaults = [System.Collections.Generic.List[object]]::new()
+        foreach ($own in @($codeSecurity.Private, $codeSecurity.Public)) {
+            if (-not $own.Configuration) {
+                continue
             }
-            $configurations = @($configuration)
-            if ($codeSecurity.Default) {
-                $defaults = @([pscustomobject]@{ default_for_new_repos = $codeSecurity.Default; configuration = [pscustomobject]@{ id = $own.Id; name = $own.Name } })
+            $configuration = [pscustomobject]@{ id = $own.Configuration.Id; name = $own.Configuration.Name; target_type = 'organization'; description = $own.Configuration.Description; enforcement = $own.Configuration.Enforcement }
+            foreach ($field in $own.Configuration.Settings.Keys) {
+                $configuration | Add-Member -NotePropertyName $field -NotePropertyValue $own.Configuration.Settings[$field]
+            }
+            $configurations.Add($configuration)
+            if ($own.Default) {
+                $defaults.Add([pscustomobject]@{ default_for_new_repos = $own.Default; configuration = [pscustomobject]@{ id = $own.Configuration.Id; name = $own.Configuration.Name } })
             }
         }
         $repositories = [ordered]@{}
+        $visibility = @{}
+        $ids = @{}
         foreach ($repository in @($codeSecurity.Repositories)) {
             $repositories[$repository.Name] = $null
+            $visibility[$repository.Name] = $repository.Visibility
+            $ids[$repository.Name] = $repository.Id
             if ($null -ne $repository.ConfigurationId) {
                 $repositories[$repository.Name] = [pscustomobject]@{ status = $repository.Status; configuration = [pscustomobject]@{ id = $repository.ConfigurationId; name = $repository.ConfigurationName } }
             }
         }
-        $routes = Add-TestCodeSecurityRoute -Route $routes -Configurations $configurations -Defaults $defaults -Repositories $repositories -Invitations $repositoryInvitations
+        $routes = Add-TestCodeSecurityRoute -Route $routes -Configurations $configurations.ToArray() -Defaults $defaults.ToArray() -Repositories $repositories -Visibility $visibility -Id $ids -Invitations $repositoryInvitations
     }
     if ($State.PSObject.Properties['Ruleset'] -and $null -ne $State.Ruleset) {
         $routes = Add-TestRulesetRoute -Route $routes -Ruleset $State.Ruleset
@@ -569,12 +595,17 @@ function Get-TestCodeSecurityConfiguration {
         [long]$Id = 42,
         [string]$Name = 'baseline',
         [string]$TargetType = 'organization',
-        [string]$State = 'enabled'
+        [string]$State = 'enabled',
+        # Secret scanning, push protection and code scanning default setup: enabled in the public configuration.
+        [string]$Paid = 'disabled',
+        [string]$Description = 'Free features'
     )
     [pscustomobject]@{
-        id = $Id; name = $Name; target_type = $TargetType; description = 'Free features'
+        id = $Id; name = $Name; target_type = $TargetType; description = $Description
         dependency_graph = $State; dependabot_alerts = $State; dependabot_security_updates = $State; private_vulnerability_reporting = $State
-        advanced_security = 'disabled'; enforcement = 'enforced'
+        # GitHub answers advanced_security, never the secret_protection and code_security it accepts in a write.
+        advanced_security = $Paid; secret_scanning = $Paid; secret_scanning_push_protection = $Paid; code_scanning_default_setup = $Paid
+        enforcement = 'enforced'
     }
 }
 
@@ -585,7 +616,8 @@ function Add-TestCodeSecurityRoute {
     # gets a route of its own only with the status 'detached', like every other repository. Vanished: repositories in
     # the repository list whose own reads answer 404 (deleted, renamed or transferred meanwhile). Invitations:
     # repository name -> its pending invitations (Get-TestRepositoryInvitation); every other repository has none.
-    # Visibility: repository name -> its visibility; every other repository is private.
+    # Visibility: repository name -> its visibility; every other repository is private. Id: repository name -> its id;
+    # every other repository gets 100 plus its position in the list (repo-a first: 101).
     # Lists come as gh --paginate --slurp prints them, split into pages of PageSize.
     param(
         [Parameter(Mandatory)][hashtable]$Route,
@@ -596,15 +628,19 @@ function Add-TestCodeSecurityRoute {
         [string[]]$Vanished = @(),
         [hashtable]$Invitations = @{},
         [hashtable]$Visibility = @{},
+        [hashtable]$Id = @{},
         [int]$PageSize = 100
     )
 
     $Route['GET orgs/contoso/code-security/configurations?per_page=100'] = Get-TestGhPagesResponse -Items $Configurations -PageSize $PageSize
     $Route['GET orgs/contoso/code-security/configurations/defaults'] = Get-TestGhListResponse -Items $Defaults
     $names = @($Repositories.Keys) + @($Vanished)
+    $position = 100
     $repositoryItems = @($names | ForEach-Object {
-            $repositoryVisibility = if ($Visibility.ContainsKey($_)) { $Visibility[$_] } else { 'private' }
-            [pscustomobject]@{ name = $_; archived = ($_ -in $Archived); visibility = $repositoryVisibility }
+            $position++
+            $repositoryVisibility = if ($Visibility.ContainsKey($_) -and $Visibility[$_]) { $Visibility[$_] } else { 'private' }
+            $repositoryId = if ($Id.ContainsKey($_) -and $Id[$_]) { $Id[$_] } else { $position }
+            [pscustomobject]@{ id = $repositoryId; name = $_; archived = ($_ -in $Archived); visibility = $repositoryVisibility }
         })
     $Route['GET orgs/contoso/repos?per_page=100'] = Get-TestGhPagesResponse -Items $repositoryItems -PageSize $PageSize
     foreach ($name in $Repositories.Keys) {
@@ -635,34 +671,47 @@ function Add-TestCodeSecurityRoute {
 }
 
 function Get-MatchingTestCodeSecurityState {
-    # The code security state that matches Get-TestGitHubOrgConfig: configuration 42, default for all, attached.
+    # The code security state that matches Get-TestGitHubOrgConfig: private configuration 42 and public configuration
+    # 43, each the default of its visibility; repositories on the configuration of their visibility.
     [pscustomobject]@{
-        Configuration       = [pscustomobject]@{
-            Id          = 42
-            Name        = 'baseline'
-            Description = 'Free features'
-            Enforcement = 'enforced'
-            Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled' }
+        Private             = [pscustomobject]@{
+            Configuration = [pscustomobject]@{
+                Id          = 42
+                Name        = 'baseline'
+                Description = 'Free features'
+                Enforcement = 'enforced'
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; advanced_security = 'disabled'; secret_scanning = 'disabled'; secret_scanning_push_protection = 'disabled'; code_scanning_default_setup = 'disabled' }
+            }
+            Default       = 'private_and_internal'
         }
-        Default             = 'all'
+        Public              = [pscustomobject]@{
+            Configuration = [pscustomobject]@{
+                Id          = 43
+                Name        = 'public-baseline'
+                Description = 'Free features of public repositories'
+                Enforcement = 'enforced'
+                Settings    = [ordered]@{ dependency_graph = 'enabled'; dependabot_alerts = 'enabled'; dependabot_security_updates = 'enabled'; private_vulnerability_reporting = 'enabled'; advanced_security = 'enabled'; secret_scanning = 'enabled'; secret_scanning_push_protection = 'enabled'; code_scanning_default_setup = 'enabled' }
+            }
+            Default       = 'public'
+        }
         OtherDefaults       = @()
         Repositories        = @(
-            [pscustomobject]@{ Name = 'repo-a'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attached' }
-            [pscustomobject]@{ Name = 'repo-b'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attaching' }
+            [pscustomobject]@{ Id = 101; Name = 'repo-a'; Visibility = 'private'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attached' }
+            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'public'; ConfigurationId = 43; ConfigurationName = 'public-baseline'; Status = 'attaching' }
         )
         SkippedRepositories = @()
     }
 }
 
 function Get-EmptyTestCodeSecurityState {
-    # No configuration, no default, two repositories without a configuration.
+    # Neither configuration, no default, a private and a public repository without a configuration.
     [pscustomobject]@{
-        Configuration       = $null
-        Default             = $null
+        Private             = [pscustomobject]@{ Configuration = $null; Default = $null }
+        Public              = [pscustomobject]@{ Configuration = $null; Default = $null }
         OtherDefaults       = @()
         Repositories        = @(
-            [pscustomobject]@{ Name = 'repo-a'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
-            [pscustomobject]@{ Name = 'repo-b'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+            [pscustomobject]@{ Id = 101; Name = 'repo-a'; Visibility = 'private'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'public'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
         )
         SkippedRepositories = @()
     }
@@ -908,9 +957,9 @@ function ConvertTo-TestGitHubOrgResource {
         'orgs/contoso/outside_collaborators'                               = @()
         'orgs/contoso/invitations'                                         = @()
         'orgs/contoso/repos'                                               = @(
-            @{ name = 'repo-a'; archived = $false; visibility = 'private' }
-            @{ name = 'repo-b'; archived = $false; visibility = 'private' }
-            @{ name = 'old-repo'; archived = $true; visibility = 'private' }
+            @{ id = 101; name = 'repo-a'; archived = $false; visibility = 'private' }
+            @{ id = 102; name = 'repo-b'; archived = $false; visibility = 'private' }
+            @{ id = 103; name = 'old-repo'; archived = $true; visibility = 'private' }
         )
         'repos/contoso/repo-a/invitations'                                 = @()
         'repos/contoso/repo-b/invitations'                                 = @()
@@ -952,16 +1001,20 @@ function Get-PermissiveTestGitHubOrgResource {
 }
 
 function Get-MatchingTestGitHubOrgResource {
-    # The fake store of an organization that already matches Get-TestGitHubOrgConfig.
-    $attached = @{ status = 'attached'; configuration = @{ id = 42; name = 'baseline' } }
+    # The fake store of an organization that already matches Get-TestGitHubOrgConfig: both configurations, the
+    # private repositories on configuration 42.
     ConvertTo-TestGitHubOrgResource -State (Get-MatchingTestGitHubOrgState) -Settings @{ email = 'security@contoso.com'; is_verified = $true } -CodeSecurity @{
         'orgs/contoso/code-security/configurations'          = @(
             Get-TestCodeSecurityConfiguration -Id 17 -Name 'GitHub recommended' -TargetType 'global'
             Get-TestCodeSecurityConfiguration -Id 42
+            Get-TestCodeSecurityConfiguration -Id 43 -Name 'public-baseline' -Paid 'enabled' -Description 'Free features of public repositories'
         )
-        'orgs/contoso/code-security/configurations/defaults' = @(@{ default_for_new_repos = 'all'; configuration = @{ id = 42; name = 'baseline' } })
-        'repos/contoso/repo-a/code-security-configuration'   = $attached
-        'repos/contoso/repo-b/code-security-configuration'   = $attached
+        'orgs/contoso/code-security/configurations/defaults' = @(
+            @{ default_for_new_repos = 'private_and_internal'; configuration = @{ id = 42; name = 'baseline' } }
+            @{ default_for_new_repos = 'public'; configuration = @{ id = 43; name = 'public-baseline' } }
+        )
+        'repos/contoso/repo-a/code-security-configuration'   = @{ status = 'attached'; configuration = @{ id = 42; name = 'baseline' } }
+        'repos/contoso/repo-b/code-security-configuration'   = @{ status = 'attached'; configuration = @{ id = 42; name = 'baseline' } }
     }
 }
 
@@ -1075,13 +1128,14 @@ function Register-TestGitHubOrgFake {
             param($Store, $Request)
             $key = "orgs/$($Request.Match.org)/code-security/configurations"
             $configurations = @($Store[$key])
-            # GitHub's defaults for what the request leaves out.
+            # GitHub's defaults for what the request leaves out. It accepts secret_protection and code_security but
+            # answers only advanced_security, so the fake keeps neither.
             $created = [pscustomobject]@{
                 id = 1 + [long](($configurations | Measure-Object -Property id -Maximum).Maximum); target_type = 'organization'
                 description = ''; enforcement = 'enforced'; advanced_security = 'disabled'
                 dependency_graph = 'enabled'; dependabot_alerts = 'disabled'; dependabot_security_updates = 'disabled'; private_vulnerability_reporting = 'disabled'
             }
-            foreach ($property in $Request.Body.PSObject.Properties) {
+            foreach ($property in @($Request.Body.PSObject.Properties | Where-Object { $_.Name -notin 'secret_protection', 'code_security' })) {
                 $created | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force
             }
             $Store[$key] = [object[]]($configurations + $created)
@@ -1093,7 +1147,7 @@ function Register-TestGitHubOrgFake {
             if (-not $configuration) {
                 return Get-TestGhFakeError -Message "gh: Not Found (HTTP 404): $($Request.Endpoint)"
             }
-            foreach ($property in $Request.Body.PSObject.Properties) {
+            foreach ($property in @($Request.Body.PSObject.Properties | Where-Object { $_.Name -notin 'secret_protection', 'code_security' })) {
                 $configuration | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force
             }
             $configuration
@@ -1126,10 +1180,12 @@ function Register-TestGitHubOrgFake {
             param($Store, $Request)
             $organization = $Request.Match.org
             $configuration = Find-TestCodeSecurityConfiguration -Store $Store -Organization $organization -Id $Request.Match.id
-            if (-not $configuration -or $Request.Body.scope -ne 'all_without_configurations') {
+            # Only what the engine sends: the repositories it names, never a scope that could switch a repository.
+            $ids = @($Request.Body.selected_repository_ids)
+            if (-not $configuration -or $Request.Body.scope -ne 'selected' -or $ids.Count -eq 0) {
                 return Get-TestGhFakeError -Message "gh: Validation Failed (HTTP 422): $($Request.Endpoint)"
             }
-            foreach ($repository in @($Store["orgs/$organization/repos"] | Where-Object { -not $_.archived })) {
+            foreach ($repository in @($Store["orgs/$organization/repos"] | Where-Object { -not $_.archived -and [long]$_.id -in $ids })) {
                 $key = "repos/$organization/$($repository.name)/code-security-configuration"
                 if ($null -eq $Store[$key]) {
                     $Store[$key] = [pscustomobject]@{ status = 'attaching'; configuration = [pscustomobject]@{ id = $configuration.id; name = $configuration.name } }

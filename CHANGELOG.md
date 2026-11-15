@@ -8,7 +8,23 @@ release unchanged.
 
 ## [Unreleased]
 
+### Config format
+
+- `configVersion` `2.0`: move the fields of `codeSecurity` into `codeSecurity.private` and drop
+  `default_for_new_repos` (the engine makes that configuration the default for new private and internal
+  repositories); add `codeSecurity.public` with `name`, `description`, `enforcement` and `settings`, and the
+  `settings` `advanced_security`, `secret_scanning`, `secret_scanning_push_protection` and
+  `code_scanning_default_setup` to both sections (a feature `enabled` needs `advanced_security` `enabled`),
+  as in `engine/examples/github.json`. The two names must differ, also ignoring case.
+
 ### Changed
+
+- The engine keeps two code security configurations: `codeSecurity.private` for private and internal repositories
+  and `codeSecurity.public` for public ones, where secret scanning, push protection and code scanning default setup
+  are free. Each is the default for new repositories of its visibility and is attached only to the repositories of
+  its visibility without a configuration. A public repository already on the private configuration keeps it and
+  gets a warning: apply the public one on the security products page if you want it. The engine still never
+  switches a repository's configuration.
 
 - When gh is missing or older than the minimum, the error names how to install or update it on Windows (winget),
   macOS (Homebrew) and Linux (GitHub's package repository), instead of the winget command alone; the engine

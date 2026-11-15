@@ -82,7 +82,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
 
         Should -Invoke Assert-GitHubOrgContext -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Organization -eq 'contoso' }
         Should -Invoke Read-Host -ModuleName GitHubOrg.Common -Times 0 -Exactly
-        Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -eq 'Planned changes (16):' }
+        Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -eq 'Planned changes (19):' }
         # Eight checked settings differ, and SHA pinning becomes required.
         Should -Invoke Write-Warning -ModuleName GitHubOrg -Times 9 -Exactly
         Should -Invoke Invoke-GitHubOrgPlan -ModuleName GitHubOrg -Times 0 -Exactly
@@ -114,7 +114,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
     It 'with -ValidateOnly validates the config and reads nothing from GitHub' {
         Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -ValidateOnly
 
-        Should -Invoke Write-Host -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Object -like 'Config *github.json is valid (config format 1.0).' }
+        Should -Invoke Write-Host -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Object -like 'Config *github.json is valid (config format 2.0).' }
         Should -Invoke Assert-GitHubOrgContext -ModuleName GitHubOrg -Times 0 -Exactly
         Should -Invoke Get-GitHubOrgState -ModuleName GitHubOrg -Times 0 -Exactly
         Should -Invoke Write-BootstrapRecommendation -ModuleName GitHubOrg -Times 0 -Exactly
@@ -122,7 +122,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
 
     It 'with -ValidateOnly stops on an invalid config' {
         $config = Get-TestGitHubOrgConfig
-        $config.configVersion = '2.0'
+        $config.configVersion = '3.0'
         $config | ConvertTo-Json -Depth 10 | Set-Content -Path $script:configPath -Encoding utf8
 
         { Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -ValidateOnly } | Should -Throw '*configVersion*'
@@ -141,8 +141,8 @@ Describe 'Invoke-GitHubOrgBootstrap' {
     It 'applies the plan with -Force' {
         Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -Force
 
-        Should -Invoke Invoke-GitHubOrgPlan -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Plan.Count -eq 16 }
-        Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -eq 'Done. Applied 16 change(s).' }
+        Should -Invoke Invoke-GitHubOrgPlan -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Plan.Count -eq 19 }
+        Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -eq 'Done. Applied 19 change(s).' }
         Should -Invoke Read-Host -ModuleName GitHubOrg.Common -Times 0 -Exactly
     }
 
@@ -207,7 +207,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
         $script:calls.LastIndexOf('waiver') | Should -BeLessThan $ask
         $script:calls.LastIndexOf('warning') | Should -BeLessThan $script:calls.IndexOf('waiver')
         $script:calls[-1] | Should -Be 'ask'
-        Should -Invoke Read-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Prompt -eq 'Apply 16 change(s) to GitHub organization contoso? [y/N]' }
+        Should -Invoke Read-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Prompt -eq 'Apply 19 change(s) to GitHub organization contoso? [y/N]' }
         Should -Invoke Invoke-GitHubOrgPlan -ModuleName GitHubOrg -Times 1 -Exactly
     }
 
@@ -257,7 +257,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
 
         Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -WhatIf
 
-        Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -eq 'Planned changes (16):' }
+        Should -Invoke Write-Host -ModuleName GitHubOrg.Common -Times 1 -Exactly -ParameterFilter { $Object -eq 'Planned changes (19):' }
         Should -Invoke Invoke-GitHubOrgPlan -ModuleName GitHubOrg -Times 0 -Exactly
     }
 

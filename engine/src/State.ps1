@@ -107,13 +107,13 @@ function ConvertTo-FieldMap {
 }
 
 function Read-OrgRepository {
-    # Every repository of the organization ({Name, Archived, Visibility}), read once for the inventory, code security and
+    # Every repository of the organization ({Id, Name, Archived, Visibility}), read once for the inventory, code security and
     # the ruleset.
     param([Parameter(Mandatory)][string]$Organization)
 
     Write-StateProgress -Status 'repositories'
     $repositories = @(Read-OrgEndpoint -Endpoint "orgs/$Organization/repos?per_page=100" -Paginate)
-    return , [object[]]@($repositories | ForEach-Object { [pscustomobject]@{ Name = [string]$_.name; Archived = [bool]$_.archived; Visibility = [string]$_.visibility } })
+    return , [object[]]@($repositories | ForEach-Object { [pscustomobject]@{ Id = [long]$_.id; Name = [string]$_.name; Archived = [bool]$_.archived; Visibility = [string]$_.visibility } })
 }
 
 function Get-ConcreteEndpoint {
@@ -411,7 +411,7 @@ function Get-GitHubOrgState {
         Read-CheckOnlyEndpoint -Organization $Config.organization -OrganizationPlan $state.OrganizationPlan -ResponseFields $state.ResponseFields -Observations $state.Observations -CheckedValues $state.CheckedValues -AbsentCases $absentCases
         $repositories = Read-OrgRepository -Organization $Config.organization
         $state.Inventory = Read-InventoryState -Organization $Config.organization -OrgRepository $repositories
-        $state.CodeSecurity = Read-CodeSecurityState -Organization $Config.organization -Name $Config.codeSecurity.name -OrgRepository $repositories
+        $state.CodeSecurity = Read-CodeSecurityState -Organization $Config.organization -Names ([ordered]@{ private = $Config.codeSecurity.private.name; public = $Config.codeSecurity.public.name }) -OrgRepository $repositories
         $state.CopilotSeats = Read-CopilotSeatState -Organization $Config.organization -Config $Config -Billing $billing
         $state.Ruleset = Read-RulesetState -Organization $Config.organization -Config $Config -OrgRepository $repositories -CopilotSeats $state.CopilotSeats -ConfigDirectory $ConfigDirectory
         $state.Budgets = @(Read-BudgetState -Organization $Config.organization)
