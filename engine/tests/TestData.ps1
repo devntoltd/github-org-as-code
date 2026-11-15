@@ -593,12 +593,15 @@ function Get-TestCodeSecurityConfiguration {
         [long]$Id = 42,
         [string]$Name = 'baseline',
         [string]$TargetType = 'organization',
-        [string]$State = 'enabled'
+        [string]$State = 'enabled',
+        # Secret scanning, push protection and code scanning default setup: enabled in the public configuration.
+        [string]$Paid = 'not_set',
+        [string]$Description = 'Free features'
     )
     [pscustomobject]@{
-        id = $Id; name = $Name; target_type = $TargetType; description = 'Free features'
+        id = $Id; name = $Name; target_type = $TargetType; description = $Description
         dependency_graph = $State; dependabot_alerts = $State; dependabot_security_updates = $State; private_vulnerability_reporting = $State
-        secret_scanning = 'not_set'; secret_scanning_push_protection = 'not_set'; code_scanning_default_setup = 'not_set'
+        secret_scanning = $Paid; secret_scanning_push_protection = $Paid; code_scanning_default_setup = $Paid
         advanced_security = 'disabled'; enforcement = 'enforced'
     }
 }
@@ -691,21 +694,21 @@ function Get-MatchingTestCodeSecurityState {
         OtherDefaults       = @()
         Repositories        = @(
             [pscustomobject]@{ Id = 101; Name = 'repo-a'; Visibility = 'private'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attached' }
-            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'private'; ConfigurationId = 42; ConfigurationName = 'baseline'; Status = 'attaching' }
+            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'public'; ConfigurationId = 43; ConfigurationName = 'public-baseline'; Status = 'attaching' }
         )
         SkippedRepositories = @()
     }
 }
 
 function Get-EmptyTestCodeSecurityState {
-    # Neither configuration, no default, two repositories without a configuration.
+    # Neither configuration, no default, a private and a public repository without a configuration.
     [pscustomobject]@{
         Private             = [pscustomobject]@{ Configuration = $null; Default = $null }
         Public              = [pscustomobject]@{ Configuration = $null; Default = $null }
         OtherDefaults       = @()
         Repositories        = @(
             [pscustomobject]@{ Id = 101; Name = 'repo-a'; Visibility = 'private'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
-            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'private'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
+            [pscustomobject]@{ Id = 102; Name = 'repo-b'; Visibility = 'public'; ConfigurationId = $null; ConfigurationName = $null; Status = $null }
         )
         SkippedRepositories = @()
     }
@@ -951,9 +954,9 @@ function ConvertTo-TestGitHubOrgResource {
         'orgs/contoso/outside_collaborators'                               = @()
         'orgs/contoso/invitations'                                         = @()
         'orgs/contoso/repos'                                               = @(
-            @{ name = 'repo-a'; archived = $false; visibility = 'private' }
-            @{ name = 'repo-b'; archived = $false; visibility = 'private' }
-            @{ name = 'old-repo'; archived = $true; visibility = 'private' }
+            @{ id = 101; name = 'repo-a'; archived = $false; visibility = 'private' }
+            @{ id = 102; name = 'repo-b'; archived = $false; visibility = 'private' }
+            @{ id = 103; name = 'old-repo'; archived = $true; visibility = 'private' }
         )
         'repos/contoso/repo-a/invitations'                                 = @()
         'repos/contoso/repo-b/invitations'                                 = @()
@@ -995,16 +998,20 @@ function Get-PermissiveTestGitHubOrgResource {
 }
 
 function Get-MatchingTestGitHubOrgResource {
-    # The fake store of an organization that already matches Get-TestGitHubOrgConfig.
-    $attached = @{ status = 'attached'; configuration = @{ id = 42; name = 'baseline' } }
+    # The fake store of an organization that already matches Get-TestGitHubOrgConfig: both configurations, the
+    # private repositories on configuration 42.
     ConvertTo-TestGitHubOrgResource -State (Get-MatchingTestGitHubOrgState) -Settings @{ email = 'security@contoso.com'; is_verified = $true } -CodeSecurity @{
         'orgs/contoso/code-security/configurations'          = @(
             Get-TestCodeSecurityConfiguration -Id 17 -Name 'GitHub recommended' -TargetType 'global'
             Get-TestCodeSecurityConfiguration -Id 42
+            Get-TestCodeSecurityConfiguration -Id 43 -Name 'public-baseline' -Paid 'enabled' -Description 'Free features of public repositories'
         )
-        'orgs/contoso/code-security/configurations/defaults' = @(@{ default_for_new_repos = 'private_and_internal'; configuration = @{ id = 42; name = 'baseline' } })
-        'repos/contoso/repo-a/code-security-configuration'   = $attached
-        'repos/contoso/repo-b/code-security-configuration'   = $attached
+        'orgs/contoso/code-security/configurations/defaults' = @(
+            @{ default_for_new_repos = 'private_and_internal'; configuration = @{ id = 42; name = 'baseline' } }
+            @{ default_for_new_repos = 'public'; configuration = @{ id = 43; name = 'public-baseline' } }
+        )
+        'repos/contoso/repo-a/code-security-configuration'   = @{ status = 'attached'; configuration = @{ id = 42; name = 'baseline' } }
+        'repos/contoso/repo-b/code-security-configuration'   = @{ status = 'attached'; configuration = @{ id = 42; name = 'baseline' } }
     }
 }
 
@@ -1169,10 +1176,12 @@ function Register-TestGitHubOrgFake {
             param($Store, $Request)
             $organization = $Request.Match.org
             $configuration = Find-TestCodeSecurityConfiguration -Store $Store -Organization $organization -Id $Request.Match.id
-            if (-not $configuration -or $Request.Body.scope -ne 'all_without_configurations') {
+            # Only what the engine sends: the repositories it names, never a scope that could switch a repository.
+            $ids = @($Request.Body.selected_repository_ids)
+            if (-not $configuration -or $Request.Body.scope -ne 'selected' -or $ids.Count -eq 0) {
                 return Get-TestGhFakeError -Message "gh: Validation Failed (HTTP 422): $($Request.Endpoint)"
             }
-            foreach ($repository in @($Store["orgs/$organization/repos"] | Where-Object { -not $_.archived })) {
+            foreach ($repository in @($Store["orgs/$organization/repos"] | Where-Object { -not $_.archived -and [long]$_.id -in $ids })) {
                 $key = "repos/$organization/$($repository.name)/code-security-configuration"
                 if ($null -eq $Store[$key]) {
                     $Store[$key] = [pscustomobject]@{ status = 'attaching'; configuration = [pscustomobject]@{ id = $configuration.id; name = $configuration.name } }

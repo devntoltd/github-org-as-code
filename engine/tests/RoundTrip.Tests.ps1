@@ -51,11 +51,29 @@ Describe 'Round trip on a fake GitHub API' {
             'UpdateOrganizationSettings', 'SetActionsPermissions', 'SetSelectedActions', 'SetWorkflowPermissions'
             'SetSelfHostedRunners', 'SetForkPullRequestApproval', 'SetPrivateForkPullRequestWorkflows', 'SetArtifactAndLogRetention'
             'SetCopilotCloudAgentAccess'
-            'CreateCodeSecurityConfiguration', 'SetCodeSecurityDefault', 'AttachCodeSecurityConfiguration', 'CreateRuleset', 'CreateBudget', 'CreateBudget', 'AddCopilotSeats'
+            'CreateCodeSecurityConfiguration', 'SetCodeSecurityDefault', 'AttachCodeSecurityConfiguration'
+            'CreateCodeSecurityConfiguration', 'SetCodeSecurityDefault'
+            'CreateRuleset', 'CreateBudget', 'CreateBudget', 'AddCopilotSeats'
         )
         Invoke-GitHubOrgPlan -Plan $plan
 
         Get-TestRoundTripPlan -Config $script:config | Should -BeNullOrEmpty
+    }
+
+    It 'attaches each configuration to the repositories of its visibility, then plans nothing' {
+        $resource = Get-PermissiveTestGitHubOrgResource
+        $resource['orgs/contoso/repos'][1].visibility = 'public'
+        # A public repository needs a public central workflow, or the ruleset could not run there.
+        $resource['repos/contoso/.github'].visibility = 'public'
+        Register-TestGitHubOrgFake -Resource $resource
+
+        Invoke-GitHubOrgPlan -Plan (Get-TestRoundTripPlan -Config $script:config)
+
+        Get-TestRoundTripPlan -Config $script:config | Should -BeNullOrEmpty
+        (Get-TestGhFakeResource -Endpoint 'repos/contoso/repo-a/code-security-configuration').configuration.name | Should -Be 'baseline'
+        (Get-TestGhFakeResource -Endpoint 'repos/contoso/repo-b/code-security-configuration').configuration.name | Should -Be 'public-baseline'
+        $state = Get-GitHubOrgState -Config $script:config
+        @(Get-GitHubOrgWarning -Config $script:config -CurrentState $state -Plan @() | Where-Object { $_ -like '*code security*' }) | Should -BeNullOrEmpty
     }
 
     It 'reads back the seat it bought as a seat of the plan' {
@@ -123,7 +141,7 @@ Describe 'Round trip on a fake GitHub API' {
         Register-TestGitHubOrgFake -Resource $resource
 
         $plan = Get-TestRoundTripPlan -Config $script:config
-        $plan.Action | Should -Be @('SetSelectedActions', 'UpdateCodeSecurityConfiguration', 'SetCodeSecurityDefault', 'AttachCodeSecurityConfiguration')
+        $plan.Action | Should -Be @('SetSelectedActions', 'UpdateCodeSecurityConfiguration', 'SetCodeSecurityDefault', 'AttachCodeSecurityConfiguration', 'SetCodeSecurityDefault')
         Invoke-GitHubOrgPlan -Plan $plan
 
         Get-TestRoundTripPlan -Config $script:config | Should -BeNullOrEmpty

@@ -21,18 +21,36 @@ function Test-DefaultOverlap {
 }
 
 function Get-CodeSecurityAction {
-    # Create or update the configuration, make it the default, attach it to repositories without one.
+    # The actions of the two configurations, private first.
     param(
         [Parameter(Mandatory)][object]$Config,
         [Parameter(Mandatory)][object]$Current
     )
 
-    $section = $Config.codeSecurity.private
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        Get-CodeSecurityConfigurationAction -Config $Config -Current $Current -Key $key
+    }
+}
+
+function Get-CodeSecurityConfigurationAction {
+    # Create or update the configuration of one visibility, make it the default of that visibility, attach it to the
+    # repositories of that visibility without a configuration (by id: a scope would attach it to the others too, or
+    # switch repositories that have one).
+    param(
+        [Parameter(Mandatory)][object]$Config,
+        [Parameter(Mandatory)][object]$Current,
+        # A key of $script:CodeSecurityVisibilities.
+        [Parameter(Mandatory)][string]$Key
+    )
+
+    $visibility = $script:CodeSecurityVisibilities[$Key]
+    $section = $Config.codeSecurity.$Key
+    $own = $Current.$Key
     $name = [string]$section.name
     $base = "orgs/$($Config.organization)/code-security/configurations"
-    $desired = Get-ConfiguredValue -Config $Config -Section 'codeSecurity.private.settings'
+    $desired = Get-ConfiguredValue -Config $Config -Section "codeSecurity.$Key.settings"
 
-    if ($null -eq $Current.Private.Configuration) {
+    if ($null -eq $own.Configuration) {
         # The id is known only after the create call; Invoke-GitHubOrgPlan replaces the token.
         $path = "$base/{configuration_id}"
         $enforcement = [string]$section.enforcement
@@ -51,19 +69,19 @@ function Get-CodeSecurityAction {
         }
     }
     else {
-        $path = "$base/$($Current.Private.Configuration.Id)"
+        $path = "$base/$($own.Configuration.Id)"
         $changed = [ordered]@{}
         $changes = [System.Collections.Generic.List[string]]::new()
-        if ([string]$section.description -cne $Current.Private.Configuration.Description) {
+        if ([string]$section.description -cne $own.Configuration.Description) {
             $changed.description = [string]$section.description
-            $changes.Add("description: '$($Current.Private.Configuration.Description)' -> '$($section.description)'")
+            $changes.Add("description: '$($own.Configuration.Description)' -> '$($section.description)'")
         }
-        if ([string]$section.enforcement -cne $Current.Private.Configuration.Enforcement) {
+        if ([string]$section.enforcement -cne $own.Configuration.Enforcement) {
             $changed.enforcement = [string]$section.enforcement
-            $changes.Add("enforcement: $(Format-SettingValue $Current.Private.Configuration.Enforcement) -> $($section.enforcement)")
+            $changes.Add("enforcement: $(Format-SettingValue $own.Configuration.Enforcement) -> $($section.enforcement)")
         }
         foreach ($field in $desired.Keys) {
-            $currentValue = $Current.Private.Configuration.Settings[$field]
+            $currentValue = $own.Configuration.Settings[$field]
             if ($currentValue -cne $desired[$field]) {
                 $changed[$field] = $desired[$field]
                 $changes.Add("${field}: $(Format-SettingValue $currentValue) -> $($desired[$field])")
@@ -81,13 +99,13 @@ function Get-CodeSecurityAction {
         }
     }
 
-    $wanted = $script:CodeSecurityVisibilities.private.Default
+    $wanted = $visibility.Default
     # Not being a default is the same as 'none'.
-    $currentDefault = if ($Current.Private.Default) { [string]$Current.Private.Default } else { 'none' }
+    $currentDefault = if ($own.Default) { [string]$own.Default } else { 'none' }
     if ($wanted -cne $currentDefault) {
         $replaced = @($Current.OtherDefaults | Where-Object { Test-DefaultOverlap -First $wanted -Second $_.DefaultForNewRepos } |
                 ForEach-Object { "'$($_.Name)' ($($_.DefaultForNewRepos))" })
-        $summary = "~ make code security configuration '$name' the default for new repositories: $(Format-SettingValue $Current.Private.Default) -> $wanted"
+        $summary = "~ make code security configuration '$name' the default for new repositories: $(Format-SettingValue $own.Default) -> $wanted"
         if ($replaced.Count -gt 0) {
             $summary += "; replaces $($replaced -join ', ')"
         }
@@ -101,38 +119,61 @@ function Get-CodeSecurityAction {
         }
     }
 
-    $unattached = @($Current.Repositories | Where-Object { $null -eq $_.ConfigurationId } | ForEach-Object { $_.Name })
+    # GitHub rejects 'selected' without ids, so a visibility without such repositories plans no attach.
+    $unattached = @($Current.Repositories | Where-Object { $null -eq $_.ConfigurationId -and $_.Visibility -in $visibility.Repositories })
     if ($unattached.Count -gt 0) {
         [pscustomobject]@{
             Action   = 'AttachCodeSecurityConfiguration'
             Target   = $name
             Method   = 'POST'
             Endpoint = "$path/attach"
-            Body     = [ordered]@{ scope = 'all_without_configurations' }
-            Summary  = "+ attach code security configuration '$name' to the repositories without one: $($unattached -join ', ')"
+            Body     = [ordered]@{ scope = 'selected'; selected_repository_ids = [long[]]@($unattached | ForEach-Object { $_.Id }) }
+            Summary  = "+ attach code security configuration '$name' to the $($visibility.Label) repositories without one: $(@($unattached.Name) -join ', ')"
         }
     }
 }
 
+function Get-CodeSecurityVisibilityKey {
+    # The key of $script:CodeSecurityVisibilities whose repositories have this visibility, private when GitHub names
+    # one the engine does not know.
+    param([AllowEmptyString()][string]$Visibility)
+
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        if ($Visibility -in $script:CodeSecurityVisibilities[$key].Repositories) {
+            return $key
+        }
+    }
+    return 'private'
+}
+
 function Get-CodeSecurityWarning {
-    # Repositories on another configuration, an attach that failed or no longer in effect, and repositories whose
-    # configuration could not be read.
+    # Repositories on another configuration than the one of their visibility, an attach that failed or no longer in
+    # effect, and repositories whose configuration could not be read.
     param(
         [Parameter(Mandatory)][object]$Config,
         [AllowNull()][object]$CodeSecurity
     )
 
-    $name = [string]$Config.codeSecurity.private.name
     $page = "https://github.com/organizations/$($Config.organization)/settings/security_products"
-    $ownId = $null
-    if ($CodeSecurity.Private.Configuration) {
-        $ownId = $CodeSecurity.Private.Configuration.Id
+    # Key -> the id of that configuration, when it exists.
+    $ownIds = @{}
+    foreach ($key in $script:CodeSecurityVisibilities.Keys) {
+        if ($CodeSecurity.$key.Configuration) {
+            $ownIds[$key] = $CodeSecurity.$key.Configuration.Id
+        }
     }
     foreach ($repository in @($CodeSecurity.Repositories)) {
         if ($null -eq $repository.ConfigurationId) {
             continue
         }
-        if ($repository.ConfigurationId -ne $ownId) {
+        $expected = Get-CodeSecurityVisibilityKey -Visibility $repository.Visibility
+        $name = [string]$Config.codeSecurity.$expected.name
+        $other = @($ownIds.Keys | Where-Object { $_ -ne $expected -and $ownIds[$_] -eq $repository.ConfigurationId })
+        if ($other.Count -gt 0) {
+            $otherLabel = $script:CodeSecurityVisibilities[$other[0]].Label
+            "Repository '$($repository.Name)' is $($repository.Visibility) but uses code security configuration '$($repository.ConfigurationName)', which is for $otherLabel repositories, not '$name'. The engine leaves it alone; to switch it, open $page and apply '$name' to the repository."
+        }
+        elseif ($repository.ConfigurationId -ne $ownIds[$expected]) {
             "Repository '$($repository.Name)' uses code security configuration '$($repository.ConfigurationName)', not '$name'. The engine leaves it alone; to switch it, open $page and apply '$name' to the repository."
         }
         elseif ($repository.Status -eq 'failed') {
