@@ -108,7 +108,7 @@ Describe 'Invoke-GitHubOrgBootstrap' {
 
         Invoke-GitHubOrgBootstrap -ConfigPath $script:configPath -ValidateOnly
 
-        Should -Invoke Write-Host -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Object -eq "github-org-bootstrap $version" }
+        Should -Invoke Write-Host -ModuleName GitHubOrg -Times 1 -Exactly -ParameterFilter { $Object -eq "github-org-as-code $version" }
     }
 
     It 'with -ValidateOnly validates the config and reads nothing from GitHub' {

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "github-org-bootstrap config",
+  "title": "github-org-as-code config",
   "type": "object",
   "properties": {
     "$schema": {

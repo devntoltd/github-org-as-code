@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Report a vulnerability privately at
-<https://github.com/devntoltd/github-org-bootstrap/security/advisories/new> (the **Security** tab of this
+<https://github.com/devntoltd/github-org-as-code/security/advisories/new> (the **Security** tab of this
 repository, *Report a vulnerability*): it opens a draft advisory that only you, the repository's admins and the
 organization's security managers see. Please do not open a public issue for it.
 

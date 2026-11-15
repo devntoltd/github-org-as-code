@@ -20,9 +20,9 @@
     PrivateData       = @{
         PSData = @{
             Tags         = @('GitHub', 'Organization', 'Settings', 'Governance', 'Security')
-            LicenseUri   = 'https://github.com/devntoltd/github-org-bootstrap/blob/main/LICENSE'
-            ProjectUri   = 'https://github.com/devntoltd/github-org-bootstrap'
-            ReleaseNotes = 'https://github.com/devntoltd/github-org-bootstrap/blob/main/CHANGELOG.md'
+            LicenseUri   = 'https://github.com/devntoltd/github-org-as-code/blob/main/LICENSE'
+            ProjectUri   = 'https://github.com/devntoltd/github-org-as-code'
+            ReleaseNotes = 'https://github.com/devntoltd/github-org-as-code/blob/main/CHANGELOG.md'
         }
     }
 }

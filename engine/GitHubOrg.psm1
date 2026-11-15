@@ -120,7 +120,7 @@ function Invoke-GitHubOrgBootstrap {
 
     # The release that runs, first, so every output and bug report names it; the manifest holds it.
     $version = (Import-PowerShellDataFile -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath 'GitHubOrg.psd1')).ModuleVersion
-    Write-Host "github-org-bootstrap $version"
+    Write-Host "github-org-as-code $version"
 
     # One day for the whole run, so validation and the expiry of exceptions agree.
     $today = [datetime]::UtcNow.Date
