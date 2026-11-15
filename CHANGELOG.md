@@ -8,6 +8,8 @@ release unchanged.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-15
+
 ### Changed
 
 - The repository is renamed from `devntoltd/github-org-bootstrap` to `devntoltd/github-org-as-code`, and the first
@@ -76,7 +78,8 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/devntoltd/github-org-as-code/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/devntoltd/github-org-as-code/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/devntoltd/github-org-as-code/compare/v1.0.0...v1.0.1
