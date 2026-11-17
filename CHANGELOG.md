@@ -8,6 +8,8 @@ release unchanged.
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-11-17
+
 ### Changed
 
 - The settings pages follow the menu of 2026-11-17: the `UI:` lines of the plan and `-PageWalk` show the new
@@ -94,7 +96,8 @@ release unchanged.
 
 `1.0`: the first format. A config sets `"configVersion": "1.0"`.
 
-[Unreleased]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/devntoltd/github-org-as-code/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/devntoltd/github-org-as-code/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/devntoltd/github-org-as-code/compare/v1.0.1...v1.1.0
