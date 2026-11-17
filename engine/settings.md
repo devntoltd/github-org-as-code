@@ -10,24 +10,33 @@ Every page of the organization settings menu, in menu order. Addresses are relat
 
 ### General (`profile`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
 | General > Email (will be public) | `settings.email` | - | apply | read and write | `GET orgs/{org} .email` | `PATCH orgs/{org}` |
+| Archive organization | - | - | not managed | - | - | an action on the organization, not a setting |
 | Billing email | - | - | not managed | - | - | private profile data |
+| Customer Research | - | - | not managed | - | - | research contacts from GitHub, not a security setting |
+| Delete organization | - | - | not managed | - | - | an action on the organization, not a setting |
 | Description | - | - | not managed | - | - | public profile, not a security setting |
 | Display name | - | - | not managed | - | - | identity of the organization, not a security setting |
+| GitHub Developer Program | - | - | not managed | - | - | a program membership, not a setting |
 | Gravatar email | - | - | not managed | - | - | private profile data |
+| Link Patreon account | - | - | not managed | - | - | a sponsorship account, not a setting |
 | Location | - | - | not managed | - | - | public profile, not a security setting |
+| Member requests | - | - | not managed | - | - | requests of members to the owners, who decide each one |
+| Product guidance and recommendations | - | - | not managed | - | - | messages from GitHub to the members, not a security setting |
 | Profile picture | - | - | not managed | - | - | public profile, not a security setting |
+| Promotions | - | - | not managed | - | - | messages from GitHub to the admins, not a security setting |
 | Rename organization | - | - | not managed | - | - | an action on the organization, not a setting |
 | Social accounts | - | - | not managed | - | - | public profile, not a security setting |
 | Sponsors update email | - | - | not managed | - | - | private profile data |
 | Terms of service | - | - | not managed | - | - | a contract of the organization, not a setting |
+| Tips | - | - | not managed | - | - | messages from GitHub to the members, not a security setting |
 | URL | - | - | not managed | - | - | public profile, not a security setting |
 
-### Repository > Policies (`policies/repositories`)
+### Policies > Repository (`policies/repositories`)
 
 Not managed: repository policies are objects, none defined; the organization ruleset protects the default branch.
 
@@ -47,11 +56,11 @@ Not managed: usage reports, not settings.
 
 Managed by the area `budgets` of the engine (see the [engine reference](README.md)).
 
+| Setting | Config | Recommended | Mode | API | Read | Change |
+| --- | --- | --- | --- | --- | --- | --- |
+| Included usage alerts | - | - | not managed | - | - | alerts to the billing managers on the included usage; the budgets set the limits |
+
 ### Billing and licensing > Licensing (`licensing`)
-
-Not managed: license and billing records, not settings.
-
-### Billing and licensing > Additional billing details (`billing/subscriptions`)
 
 Not managed: license and billing records, not settings.
 
@@ -59,21 +68,29 @@ Not managed: license and billing records, not settings.
 
 Not managed: payment data, never read.
 
-### Access > Organization roles (`org_roles`)
+### Billing and licensing > Payment history (`/organizations/<org>/billing/history`)
+
+Not managed: payment records, not settings.
+
+### Billing and licensing > Additional billing details (`billing/subscriptions`)
+
+Not managed: license and billing records, not settings.
+
+### Organization roles > Role management (`org_roles`)
 
 Not managed: roles and who holds them are people and teams, managed outside this tool.
 
-### Access > Role assignments (`org_role_assignments`)
+### Organization roles > Role assignments (`org_role_assignments`)
 
 Not managed: roles and who holds them are people and teams, managed outside this tool.
 
-### Access > Repository roles (`roles`)
+### Repository roles (`roles`)
 
 Not managed: roles and who holds them are people and teams, managed outside this tool.
 
-### Access > Member privileges (`member_privileges`)
+### Member privileges (`member_privileges`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -95,7 +112,7 @@ Rows in the order of the page; UI read on 2026-11-09.
 | Team creation rules > Allow members to create teams | `settings.members_can_create_teams` | `false` | check | read only | `GET orgs/{org} .members_can_create_teams` | on the page |
 | Repository invitations | - | - | not managed | - | - | not shown on GitHub Team; the row settings.members_can_invite_outside_collaborators checks it |
 
-### Access > Import/Export (`import-export`)
+### Import/Export (`import-export`)
 
 Not managed: one-off data export, not a setting.
 
@@ -105,7 +122,7 @@ Not managed: a list of accounts, not a setting.
 
 ### Moderation > Interaction limits (`interaction_limits`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -126,7 +143,7 @@ Not managed: people and teams, managed outside this tool.
 
 ### Repository > General (`repository-defaults`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -139,10 +156,6 @@ Rows in the order of the page; UI read on 2026-11-09.
 ### Repository > Topics (`/orgs/<org>/topics`)
 
 Not managed: the topics of each repository, repository data (outside this tool).
-
-### Repository > Custom properties (`custom-properties`)
-
-Not managed: repository properties are objects, none defined (outside this tool).
 
 ### Repository > Rulesets (`rules`)
 
@@ -168,17 +181,21 @@ Managed by the area `ruleset` of the engine (see the [engine reference](README.m
 | review_on_push | `ruleset.rules.copilotCodeReview.review_on_push` | `true` | apply | by area | - | by the engine |
 | review_draft_pull_requests | `ruleset.rules.copilotCodeReview.review_draft_pull_requests` | `false` | apply | by area | - | by the engine |
 
-### Repository > Rule insights (`rules/insights`)
+### Repository > Ruleset insights (`rules/insights`)
 
 Not managed: reports, not settings.
 
-### Repository > Rules dashboard (`rules/dashboard`)
+### Repository > Ruleset dashboard (`rules/dashboard`)
 
 Not managed: reports, not settings.
+
+### Custom properties > Repository properties (`custom-properties`)
+
+Not managed: repository properties are objects, none defined (outside this tool).
 
 ### Codespaces > General (`codespaces`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -192,7 +209,7 @@ Not managed: policies are objects, none defined; they apply only with organizati
 
 ### Planning > Projects (`projects`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -214,7 +231,7 @@ Managed by the area `copilotSeats` of the engine (see the [engine reference](REA
 
 ### Copilot > Policies (`copilot/policies`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -257,7 +274,7 @@ Rows in the order of the page; UI read on 2026-11-09.
 
 ### Copilot > Models (`copilot/models`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -273,20 +290,9 @@ Not managed: free text instructions for Copilot, not a setting.
 
 Not managed: a list of paths Copilot must not read, none excluded.
 
-### Copilot > Code review (`copilot/code_review`)
-
-Rows in the order of the page; UI read on 2026-11-09.
-
-| Setting | Config | Recommended | Mode | API | Read | Change |
-| --- | --- | --- | --- | --- | --- | --- |
-| General > Default review effort level (under "General" set "Default review effort level") | `copilot.codeReview.default_review_effort` | - | check | read and write | `GET orgs/{org}/copilot/code-review/settings .default_review_effort.configured` | `PATCH orgs/{org}/copilot/code-review/settings` |
-| General > Maximum review effort (under "General" choose "Maximum review effort") | `copilot.codeReview.maximum_review_effort` | `balanced` | manual | UI only | - | on the page |
-| Approvals > Allow Copilot to approve pull requests | `copilot.codeReview.approve_pull_requests` | `disabled_everywhere` | manual | UI only | - | on the page |
-| Access and licensing > Block reviews requested with an external Copilot license | `copilot.codeReview.block_external_license_reviews` | `true` | manual | UI only | - | on the page |
-
 ### Copilot > Cloud (`copilot/coding_agent`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -299,9 +305,22 @@ Rows in the order of the page; UI read on 2026-11-09.
 | Partner agents > Allow Claude coding agent | `copilot.partnerAgents.claude` | `false` | manual | UI only | - | on the page |
 | Partner agents > Allow Codex coding agent | `copilot.partnerAgents.codex` | `false` | manual | UI only | - | on the page |
 
+### Copilot > Code review (`copilot/code_review`)
+
+Rows in the order of the page; UI read on 2026-11-17.
+
+| Setting | Config | Recommended | Mode | API | Read | Change |
+| --- | --- | --- | --- | --- | --- | --- |
+| General > Default review effort level (under "General" set "Default review effort level") | `copilot.codeReview.default_review_effort` | - | check | read and write | `GET orgs/{org}/copilot/code-review/settings .default_review_effort.configured` | `PATCH orgs/{org}/copilot/code-review/settings` |
+| General > Maximum review effort (under "General" choose "Maximum review effort") | `copilot.codeReview.maximum_review_effort` | `balanced` | manual | UI only | - | on the page |
+| Approvals > Allow Copilot to approve pull requests | `copilot.codeReview.approve_pull_requests` | `disabled_everywhere` | manual | UI only | - | on the page |
+| Access and licensing > Block reviews requested with an external Copilot license | `copilot.codeReview.block_external_license_reviews` | `true` | manual | UI only | - | on the page |
+| Automatic code review | - | - | not managed | - | - | the rulesets with a Copilot code review rule; the organization ruleset sets it (ruleset.rules.copilotCodeReview) |
+| Secret Protection AI Scan | - | - | not managed | - | - | a preview, left off |
+
 ### Copilot > Internet access (`copilot/internet_access`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -315,7 +334,7 @@ Rows in the order of the page; UI read on 2026-11-09.
 
 ### Copilot > Runner type (`copilot/runner_type`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -326,7 +345,7 @@ Rows in the order of the page; UI read on 2026-11-09.
 
 ### Actions > General (`actions`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -351,11 +370,11 @@ Rows in the order of the page; UI read on 2026-11-09.
 | Custom images | - | - | not managed | - | - | runners are not used |
 | Standard hosted runners | - | - | not managed | - | - | the workflows run on the standard hosted runners, which stay enabled |
 
-### Actions > Rules (`actions/rules`)
+### Actions > Policies (`actions/rules`)
 
 Not managed: Actions policies are objects, none defined; GitHub restricts pull_request_target on public repositories by default from 2026-12-02.
 
-### Actions > Rule insights (`actions/rules/insights`)
+### Actions > Policy insights (`actions/rules/insights`)
 
 Not managed: reports, not settings.
 
@@ -375,9 +394,9 @@ Not managed: runners are not used.
 
 Not managed: cache storage of the workflows, not a setting.
 
-### Actions > OIDC configuration (`actions/oidc-configuration`)
+### Actions > OIDC (`actions/oidc-configuration`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -391,7 +410,7 @@ Managed by the area `inventory` of the engine (see the [engine reference](README
 
 ### Discussions (`discussions`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -399,7 +418,7 @@ Rows in the order of the page; UI read on 2026-11-09.
 
 ### Packages (`packages`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -417,40 +436,9 @@ Not managed: verified domains for Pages, a list, none added.
 
 Not managed: runners are not used.
 
-### Advanced Security > Global settings (`security_analysis`)
-
-Rows in the order of the page; UI read on 2026-11-09.
-
-| Setting | Config | Recommended | Mode | API | Read | Change |
-| --- | --- | --- | --- | --- | --- | --- |
-| Code scanning > Agentic autofix | `advancedSecurity.agentic_autofix` | `false` | manual | UI only | - | on the page |
-| AI Scan > AI Scan for repositories | `advancedSecurity.ai_scan_repositories` | `false` | manual | UI only | - | on the page |
-| AI Scan > AI Scan for pull requests | `advancedSecurity.ai_scan_pull_requests` | `disabled` | check | read and write | `GET orgs/{org}/code-scanning/ai-scan .pr_scan` | `PATCH orgs/{org}/code-scanning/ai-scan` |
-| AI Scan > Scan for AI applications | `advancedSecurity.scan_ai_applications` | `false` | manual | UI only | - | on the page |
-| Push protection > Add a resource link in the CLI and web UI when a commit is blocked (under "Push protection" set or clear "Add a resource link in the CLI and web UI when a commit is blocked" and its link, as the config expects) | `settings.secret_scanning_push_protection_custom_link` | - | check | read and write | `GET orgs/{org} .secret_scanning_push_protection_custom_link` | `PATCH orgs/{org}` |
-| Grant Dependabot access to repositories > Repository access | `dependabot.default_level` | `public` | check | read and write | `GET orgs/{org}/dependabot/repository-access .default_level` | `PUT orgs/{org}/dependabot/repository-access/default-level` |
-| Copilot Autofix | - | - | not managed | - | - | a suggested fix on an alert, no access or cost |
-| Custom patterns | - | - | not managed | - | - | secret patterns, objects, none defined |
-| Dependabot rules | - | - | not managed | - | - | alert rules, objects rather than settings |
-| Expand CodeQL analysis | - | - | not managed | - | - | the libraries CodeQL knows, no access or cost |
-| Grouped security updates | - | - | not managed | - | - | how Dependabot groups its pull requests, no access or cost |
-| Keep scheduled scans running every 30 days for inactive repositories | - | - | not managed | - | - | scan schedule, no access or cost |
-| Pattern configurations | - | - | not managed | - | - | the secret patterns of push protection, GitHub defaults |
-| Recommend the extended query suite for repositories enabling default setup | - | - | not managed | - | - | the depth of code scanning, no access or cost |
-| Runner type | - | - | not managed | - | - | the runner of Dependabot, the standard one |
-| Select additional repositories | - | - | not managed | - | - | repositories added one by one to Dependabot access, none |
-
-### Code quality (`code-quality`)
-
-Rows in the order of the page; UI read on 2026-11-09.
-
-| Setting | Config | Recommended | Mode | API | Read | Change |
-| --- | --- | --- | --- | --- | --- | --- |
-| Code quality > Enable Code Quality (true is "Enable Code Quality" selected) | `advancedSecurity.code_quality` | `false` | manual | UI only | - | on the page |
-
 ### Authentication security (`security`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -490,9 +478,40 @@ Managed by the area `codeSecurity` of the engine (see the [engine reference](REA
 | secret_scanning_push_protection | `codeSecurity.public.settings.secret_scanning_push_protection` | `enabled` | apply | by area | - | by the engine |
 | code_scanning_default_setup | `codeSecurity.public.settings.code_scanning_default_setup` | `enabled` | apply | by area | - | by the engine |
 
+### Advanced Security > Global settings (`security_analysis`)
+
+Rows in the order of the page; UI read on 2026-11-17.
+
+| Setting | Config | Recommended | Mode | API | Read | Change |
+| --- | --- | --- | --- | --- | --- | --- |
+| Code scanning > Agentic autofix | `advancedSecurity.agentic_autofix` | `false` | manual | UI only | - | on the page |
+| AI Scan > AI Scan for repositories | `advancedSecurity.ai_scan_repositories` | `false` | manual | UI only | - | on the page |
+| AI Scan > AI Scan for pull requests | `advancedSecurity.ai_scan_pull_requests` | `disabled` | check | read and write | `GET orgs/{org}/code-scanning/ai-scan .pr_scan` | `PATCH orgs/{org}/code-scanning/ai-scan` |
+| AI Scan > Scan for AI applications | `advancedSecurity.scan_ai_applications` | `false` | manual | UI only | - | on the page |
+| Push protection > Add a resource link in the CLI and web UI when a commit is blocked (under "Push protection" set or clear "Add a resource link in the CLI and web UI when a commit is blocked" and its link, as the config expects) | `settings.secret_scanning_push_protection_custom_link` | - | check | read and write | `GET orgs/{org} .secret_scanning_push_protection_custom_link` | `PATCH orgs/{org}` |
+| Grant Dependabot access to repositories > Repository access | `dependabot.default_level` | `public` | check | read and write | `GET orgs/{org}/dependabot/repository-access .default_level` | `PUT orgs/{org}/dependabot/repository-access/default-level` |
+| Copilot Autofix | - | - | not managed | - | - | a suggested fix on an alert, no access or cost |
+| Custom patterns | - | - | not managed | - | - | secret patterns, objects, none defined |
+| Dependabot rules | - | - | not managed | - | - | alert rules, objects rather than settings |
+| Expand CodeQL analysis | - | - | not managed | - | - | the libraries CodeQL knows, no access or cost |
+| Grouped security updates | - | - | not managed | - | - | how Dependabot groups its pull requests, no access or cost |
+| Keep scheduled scans running every 30 days for inactive repositories | - | - | not managed | - | - | scan schedule, no access or cost |
+| Pattern configurations | - | - | not managed | - | - | the secret patterns of push protection, GitHub defaults |
+| Recommend the extended query suite for repositories enabling default setup | - | - | not managed | - | - | the depth of code scanning, no access or cost |
+| Runner type | - | - | not managed | - | - | the runner of Dependabot, the standard one |
+| Select additional repositories | - | - | not managed | - | - | repositories added one by one to Dependabot access, none |
+
+### Code quality (`code-quality`)
+
+Rows in the order of the page; UI read on 2026-11-17.
+
+| Setting | Config | Recommended | Mode | API | Read | Change |
+| --- | --- | --- | --- | --- | --- | --- |
+| Code quality > Enable Code Quality (true is "Enable Code Quality" selected) | `advancedSecurity.code_quality` | `false` | manual | UI only | - | on the page |
+
 ### Deploy keys (`deploy_keys`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -504,7 +523,7 @@ Not managed: compliance reports, not settings.
 
 ### Verified and approved domains (`domains`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -530,7 +549,7 @@ Not managed: secret values, never read.
 
 Managed by the area `inventory` of the engine (see the [engine reference](README.md)).
 
-### Third-party access > OAuth app policy (`oauth_application_policy`)
+### OAuth app policy (`oauth_application_policy`)
 
 Rows in the order of the page; UI read on 2026-11-09.
 
@@ -540,7 +559,7 @@ Rows in the order of the page; UI read on 2026-11-09.
 
 ### Personal access tokens > Settings (`personal-access-tokens`)
 
-Rows in the order of the page; UI read on 2026-11-09.
+Rows in the order of the page; UI read on 2026-11-17.
 
 | Setting | Config | Recommended | Mode | API | Read | Change |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -562,19 +581,7 @@ Not managed: lists of tokens and requests, not settings.
 
 Not managed: scheduled reminders are objects, none created.
 
-### Developer settings > OAuth apps (`applications`)
-
-Not managed: OAuth apps the organization owns, none.
-
-### Developer settings > GitHub Apps (`apps`)
-
-Not managed: GitHub Apps the organization owns, none, and their managers (people).
-
-### Developer settings > Publisher verification (`publisher`)
-
-Not managed: publisher verification for Marketplace apps, none published.
-
-### Logs > Sponsors log (`sponsors-log`)
+### Logs > Sponsorship log (`sponsors-log`)
 
 Not managed: logs and lists; the audit log is read by hand (README, Manual verification).
 
@@ -585,6 +592,18 @@ Not managed: logs and lists; the audit log is read by hand (README, Manual verif
 ### Deleted repositories (`deleted_repositories`)
 
 Not managed: logs and lists; the audit log is read by hand (README, Manual verification).
+
+### Developer settings > OAuth Apps (`applications`)
+
+Not managed: OAuth apps the organization owns, none.
+
+### Developer settings > GitHub Apps (`apps`)
+
+Not managed: GitHub Apps the organization owns, none, and their managers (people).
+
+### Developer settings > Publisher Verification (`publisher`)
+
+Not managed: publisher verification for Marketplace apps, none published.
 
 ### Fields without a page
 
