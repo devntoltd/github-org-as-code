@@ -7,9 +7,10 @@ Runs the engine version pinned in engine.psd1 against github.json, both next to 
 .DESCRIPTION
 Copy this file and engine.psd1 into the repository that holds the organization's config. The engine is checked out at
 the pinned commit into .engine/ next to this script (git-ignore it) and reused while the pin is unchanged; the run
-stops when the pinned tag does not point at the pinned commit, and when .engine/ has local changes; it warns when this
-file differs from the wrapper of the pinned engine, which raising the pin does not update. The switches are
-those of engine/bootstrap.ps1.
+stops when the pinned tag does not point at the pinned commit, when .engine/ has local changes, and when the pinned
+engine has no engine/examples/run.ps1. After the engine ran it warns when this file differs from the wrapper of the
+pinned engine, and when org-checks.yml next to github.json is missing or differs from engine/examples/org-checks.yml of
+the pinned engine: raising the pin updates neither copy. The switches are those of engine/bootstrap.ps1.
 
 .EXAMPLE
 ./run.ps1 -WhatIf
@@ -113,11 +114,13 @@ if ($head -cne $commit) {
     Assert-EngineUnchanged
 }
 
-# This file is a copy, which raising the pin does not update: a warning, after the engine's output where the end of
-# the run shows it, when it differs from the wrapper of the pinned engine. Line endings, the newlines at the end and an
-# Authenticode signature block of either file do not count. Not a stop, since a repository may keep a change on purpose
-# and the engine is the pinned one either way. engine/examples/run.ps1 is where every release keeps its wrapper: a
-# release that moved it would silence this check in the wrappers before it.
+# This file and org-checks.yml beside github.json are copies of files of the engine, which raising the pin does not
+# update: a warning for each, after the engine's output where the end of the run shows it, when it differs from the file
+# of the pinned engine (engine/examples/run.ps1, engine/examples/org-checks.yml, the central workflow the engine
+# recommends), and when org-checks.yml is missing. Line endings, the newlines at the end and an Authenticode signature
+# block do not count. Not a stop, since a repository may keep a change on purpose and the engine is the pinned one either
+# way. Every release keeps both files there: a pinned engine without its wrapper is a bug of the engine and stops the
+# run before the engine runs.
 function Get-WrapperText {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -125,7 +128,14 @@ function Get-WrapperText {
     ($text -replace '(?s)\n# SIG # Begin signature block\n.*$', '').TrimEnd()
 }
 $pinnedWrapper = [System.IO.Path]::GetFullPath((Join-Path -Path $engine -ChildPath 'engine/examples/run.ps1'))
-$staleWrapper = (Test-Path -LiteralPath $pinnedWrapper) -and (Get-WrapperText -Path $PSCommandPath) -cne (Get-WrapperText -Path $pinnedWrapper)
+if (-not (Test-Path -LiteralPath $pinnedWrapper)) {
+    throw "The engine $tag has no engine/examples/run.ps1, which every release keeps; report it as a bug of the engine."
+}
+$staleWrapper = (Get-WrapperText -Path $PSCommandPath) -cne (Get-WrapperText -Path $pinnedWrapper)
+$pinnedExample = [System.IO.Path]::GetFullPath((Join-Path -Path $engine -ChildPath 'engine/examples/org-checks.yml'))
+$ownExample = Join-Path -Path $PSScriptRoot -ChildPath 'org-checks.yml'
+$missingExample = -not (Test-Path -LiteralPath $ownExample)
+$staleExample = -not $missingExample -and (Get-WrapperText -Path $ownExample) -cne (Get-WrapperText -Path $pinnedExample)
 
 $bootstrap = Join-Path -Path $engine -ChildPath 'engine/bootstrap.ps1'
 try {
@@ -134,5 +144,11 @@ try {
 finally {
     if ($staleWrapper) {
         Write-Warning "run.ps1 differs from the wrapper of $tag; copy $pinnedWrapper over $PSCommandPath, unless you changed it on purpose."
+    }
+    if ($missingExample) {
+        Write-Warning "No org-checks.yml beside github.json; copy $pinnedExample to $ownExample, the reference copy of the central workflow (engine/README.md, Manual setup)."
+    }
+    elseif ($staleExample) {
+        Write-Warning "org-checks.yml differs from the example of $tag; copy $pinnedExample over $ownExample, unless you changed it on purpose."
     }
 }
