@@ -9,8 +9,9 @@ Copy this file and engine.psd1 into the repository that holds the organization's
 the pinned commit into .engine/ next to this script (git-ignore it) and reused while the pin is unchanged; the run
 stops when the pinned tag does not point at the pinned commit, when .engine/ has local changes, and when the pinned
 engine has no engine/examples/run.ps1. After the engine ran it warns when this file differs from the wrapper of the
-pinned engine, and when org-checks.yml next to github.json is missing or differs from engine/examples/org-checks.yml of
-the pinned engine: raising the pin updates neither copy. The switches are those of engine/bootstrap.ps1.
+pinned engine, and, while the ruleset of github.json requires a workflow named org-checks.yml, when org-checks.yml next to
+github.json is missing or differs from engine/examples/org-checks.yml of the pinned engine: raising the pin updates
+neither copy. The switches are those of engine/bootstrap.ps1.
 
 .EXAMPLE
 ./run.ps1 -WhatIf
@@ -134,8 +135,19 @@ if (-not (Test-Path -LiteralPath $pinnedWrapper)) {
 $staleWrapper = (Get-WrapperText -Path $PSCommandPath) -cne (Get-WrapperText -Path $pinnedWrapper)
 $pinnedExample = [System.IO.Path]::GetFullPath((Join-Path -Path $engine -ChildPath 'engine/examples/org-checks.yml'))
 $ownExample = Join-Path -Path $PSScriptRoot -ChildPath 'org-checks.yml'
-$missingExample = -not (Test-Path -LiteralPath $ownExample)
-$staleExample = -not $missingExample -and (Get-WrapperText -Path $ownExample) -cne (Get-WrapperText -Path $pinnedExample)
+# Only while the ruleset of the config requires a workflow named org-checks.yml (the file name of its path, compared
+# case-sensitively as the engine finds its reference copy): a workflow of another name has its own reference copy. A
+# github.json that is not JSON is left to the engine, which says what is wrong with it.
+$requiresExample = $false
+try {
+    $workflows = @((Get-Content -Raw -LiteralPath (Join-Path -Path $PSScriptRoot -ChildPath 'github.json') | ConvertFrom-Json).ruleset.rules.workflows)
+    $requiresExample = @($workflows | Where-Object { [System.IO.Path]::GetFileName([string]$_.path) -ceq 'org-checks.yml' }).Count -gt 0
+}
+catch {
+    $requiresExample = $false
+}
+$missingExample = $requiresExample -and -not (Test-Path -LiteralPath $ownExample)
+$staleExample = $requiresExample -and -not $missingExample -and (Get-WrapperText -Path $ownExample) -cne (Get-WrapperText -Path $pinnedExample)
 
 $bootstrap = Join-Path -Path $engine -ChildPath 'engine/bootstrap.ps1'
 try {

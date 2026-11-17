@@ -77,8 +77,8 @@ Keep `github.json` in a private repository of your organization and run a pinned
    git and access to github.com, but no gh and no credentials.
 4. Copy [engine/examples/org-checks.yml](engine/examples/org-checks.yml), the central workflow the engine
    recommends, next to `github.json`: it is the reference copy of the workflow your ruleset requires, and every run
-   compares the workflow at the configured commit with it. `run.ps1` warns while it is missing or differs from the
-   example of the pinned engine.
+   compares the workflow at the configured commit with it. While the ruleset requires a workflow named
+   `org-checks.yml`, `run.ps1` warns while the copy is missing or differs from the example of the pinned engine.
 
 ## Upgrading
 

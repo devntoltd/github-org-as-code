@@ -24,7 +24,10 @@ Describe 'engine/examples/run.ps1' {
         $script:run = Join-Path -Path $directory -ChildPath 'run.ps1'
         Copy-Item -LiteralPath $script:source -Destination $script:run
         Set-Content -LiteralPath (Join-Path -Path $directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-as-code'; Tag = 'v1.0.0'; Commit = '$script:commit' }"
-        # The central workflow of the pinned engine, and the copy of the config repository beside github.json.
+        # A config whose ruleset requires the central workflow, the central workflow of the pinned engine, and the copy of
+        # the config repository beside github.json.
+        $script:config = Join-Path -Path $directory -ChildPath 'github.json'
+        Set-Content -LiteralPath $script:config -Value '{ "ruleset": { "rules": { "workflows": [ { "repository": ".github", "path": ".github/workflows/org-checks.yml", "sha": "0123456789abcdef0123456789abcdef01234567" } ] } } }'
         $example = "name: org checks`n"
         $script:ownExample = Join-Path -Path $directory -ChildPath 'org-checks.yml'
         Set-Content -LiteralPath $script:ownExample -Value $example -NoNewline
@@ -260,6 +263,29 @@ Describe 'engine/examples/run.ps1' {
         & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
 
         $warnings | Should -BeNullOrEmpty
+    }
+
+    It 'does not check org-checks.yml when the ruleset requires no workflow of that name (<Case>)' -ForEach @(
+        @{ Case = 'another name'; Path = '.github/workflows/checks.yml' }
+        @{ Case = 'another case'; Path = '.github/workflows/Org-checks.yml' }
+    ) {
+        Set-Content -LiteralPath $script:config -Value ('{ "ruleset": { "rules": { "workflows": [ { "repository": ".github", "path": "' + $Path + '", "sha": "0123456789abcdef0123456789abcdef01234567" } ] } } }')
+        Remove-Item -LiteralPath $script:ownExample
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $warnings | Should -BeNullOrEmpty
+        Get-TestCall | Should -Not -BeNullOrEmpty
+    }
+
+    It 'leaves github.json that is not JSON to the engine and does not check org-checks.yml' {
+        Set-Content -LiteralPath $script:config -Value '{ not json'
+        Set-Content -LiteralPath $script:ownExample -Value "name: old checks`n" -NoNewline
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $warnings | Should -BeNullOrEmpty
+        Get-TestCall | Should -Not -BeNullOrEmpty
     }
 
     It 'warns about run.ps1 first, then about org-checks.yml' {
