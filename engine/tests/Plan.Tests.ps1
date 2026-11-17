@@ -212,7 +212,7 @@ Describe 'Get-GitHubOrgPlan' {
         $action = Get-PlanAction -Plan @(Get-GitHubOrgPlan -Config (Get-TestGitHubOrgConfig) -CurrentState $state) -Action 'UpdateOrganizationSettings'
 
         @($action.Details | Where-Object { $_ -like 'UI:*' }) | Should -Be @(
-            'UI:    Access > Member privileges > Repository creation  https://github.com/organizations/contoso/settings/member_privileges'
+            'UI:    Member privileges > Repository creation  https://github.com/organizations/contoso/settings/member_privileges'
             'UI:    Deploy keys > Deploy keys  https://github.com/organizations/contoso/settings/deploy_keys'
         )
     }

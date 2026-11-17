@@ -10,6 +10,12 @@ release unchanged.
 
 ### Changed
 
+- The settings pages follow the menu of 2026-11-17: the `UI:` lines of the plan and `-PageWalk` show the new
+  labels (*Member privileges* without *Access >*, *Organization roles > Role management*, *Actions > Policies*,
+  *OAuth app policy* and others), the pages are in the new menu order, *Billing and licensing > Payment history* is
+  listed, and `engine/settings.md` lists the new controls of *General*, *Budgets and alerts* and
+  *Copilot > Code review* as not managed.
+
 - `engine/examples/org-checks.yml`, the example of the central workflow, runs zizmor 1.32.0. A central
   workflow copied from it gets the warning that it differs from the reference copy until it raises the same
   version.
