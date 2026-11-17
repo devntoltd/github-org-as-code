@@ -14,4 +14,4 @@ Opened by `tools/Invoke-DependencyUpdateCheck.ps1` (weekly workflow `.github/wor
 - [ ] Raise the version in `modules.lock.psd1` or `dev-tools.psd1`; a command-line tool with `./tools/Update-DevTool.ps1 -Name <tool> -Version <version>` (its files and SHA-256 of every platform), and also `VERSION` and `SHA256` of its step in `.github/workflows/ci.yml`
 - [ ] Install it with `./tools/Install-DevTools.ps1` (the signature is checked on Windows) and run `./build.ps1 all`
 
-Close this issue as **completed** with the pull request that raises the versions. To stay on the locked versions, close it as **not planned**: no other issue opens until a still newer version appears.
+Close this issue with the pull request that raises the versions, or without one to stay on the locked versions; the check does not read whether it was closed as completed or not planned. While a closed issue lists every version above, no other issue opens; a newer version, or one that leaves quarantine, opens a new one.

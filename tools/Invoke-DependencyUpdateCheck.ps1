@@ -7,7 +7,7 @@ The candidates come from CandidatePath (the JSON of Find-DependencyUpdate.ps1 -O
 running Find-DependencyUpdate.ps1. The issue comes from the template .github/ISSUE_TEMPLATE/dependency-update.md (its
 title, labels, which must include 'dependency-update', and assignees; above its body a marker per candidate, the
 table, the versions in quarantine and the test result). An open issue with the label is updated; a closed one whose
-markers hold every candidate keeps another from opening (closing it as not planned stays on the lock); a new
+markers hold every candidate keeps another from opening, whatever its close reason; a new
 candidate opens a new one.
 
 Uses gh, signed in (GH_TOKEN in Actions) and pointed at the repository (GH_REPO in Actions, the git remote of the
@@ -82,7 +82,7 @@ else {
 
     $issues = @(Get-LabeledIssue -Label $label)
     $open = $issues | Where-Object { $_.state -eq 'OPEN' } | Select-Object -First 1
-    # A closed issue that holds every candidate: closing it as not planned stays on the lock.
+    # A closed issue that holds every candidate, completed or not planned: the close reason is not read.
     $closed = Find-IssueByMarker -Issue @($issues | Where-Object { $_.state -ne 'OPEN' }) -Marker $markers
     $issue = @{
         Title            = $template.Title

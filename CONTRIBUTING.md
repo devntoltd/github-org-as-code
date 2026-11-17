@@ -95,7 +95,7 @@ The versions of `dev-tools.psd1` (modules and command-line tools of the checks) 
 
 To raise a version, in one pull request:
 
-1. Change the version in `dev-tools.psd1`. A module that needs another one needs it locked in the same file: `./tools/Install-DevTools.ps1` checks this against the Gallery, in CI too. A command-line tool is raised with `./tools/Update-DevTool.ps1 -Name <tool> -Version <version>`, which writes its tag and the file and SHA-256 of every platform from the release (it stops, writing nothing, when a file was renamed upstream: set the names by hand then); it also changes `VERSION` and `SHA256` of its step in `ci.yml` (a test keeps the `linux-x64` file equal). `./build.ps1 tool-files` checks every pinned file against GitHub.
+1. Change the version in `dev-tools.psd1`. A module that needs another one needs it locked in the same file: `./tools/Install-DevTools.ps1` checks this against the Gallery, in CI too. A command-line tool is raised with `./tools/Update-DevTool.ps1 -Name <tool> -Version <version>`, which writes its tag and the file and SHA-256 of every platform from the release (it stops, writing nothing, when a file was renamed upstream: set the names by hand then); then raise `VERSION` and `SHA256` of its step in `ci.yml`, and in `engine/examples/org-checks.yml` when it has one, by hand (a test keeps the `linux-x64` file equal). `./build.ps1 tool-files` checks every pinned file against GitHub.
 2. Run `./tools/Install-DevTools.ps1`, then `./build.ps1 all`.
 
 ## Recurring operations
