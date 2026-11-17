@@ -8,6 +8,12 @@ release unchanged.
 
 ## [Unreleased]
 
+### Changed
+
+- `engine/examples/org-checks.yml`, the example of the central workflow, runs zizmor 1.32.0. A central
+  workflow copied from it gets the warning that it differs from the reference copy until it raises the same
+  version.
+
 ## [2.0.1] - 2026-11-15
 
 ### Changed
