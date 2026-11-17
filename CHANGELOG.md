@@ -16,9 +16,13 @@ release unchanged.
   listed, and `engine/settings.md` lists the new controls of *General*, *Budgets and alerts* and
   *Copilot > Code review* as not managed.
 
-- `engine/examples/org-checks.yml`, the example of the central workflow, runs zizmor 1.32.0. A central
-  workflow copied from it gets the warning that it differs from the reference copy until it raises the same
-  version.
+- `engine/examples/org-checks.yml`, the central workflow the engine recommends, runs zizmor 1.32.0. Copy it over
+  `org-checks.yml` beside `github.json` (`run.ps1` warns until you do); the run then warns that the workflow of
+  `.github` differs from it until it is copied there and its merge commit is in `ruleset.rules.workflows[].sha`.
+- `run.ps1` warns after the engine ran while the ruleset requires a workflow named `org-checks.yml` and
+  `org-checks.yml` beside `github.json` is missing or differs from `engine/examples/org-checks.yml` of the pinned
+  engine, and stops before the engine runs when the pinned engine has no `engine/examples/run.ps1` instead of
+  skipping its own check. Copy the new `engine/examples/run.ps1` over yours.
 
 ## [2.0.1] - 2026-11-15
 

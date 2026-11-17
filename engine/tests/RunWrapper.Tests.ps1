@@ -24,8 +24,15 @@ Describe 'engine/examples/run.ps1' {
         $script:run = Join-Path -Path $directory -ChildPath 'run.ps1'
         Copy-Item -LiteralPath $script:source -Destination $script:run
         Set-Content -LiteralPath (Join-Path -Path $directory -ChildPath 'engine.psd1') -Value "@{ Repository = 'example-owner/github-org-as-code'; Tag = 'v1.0.0'; Commit = '$script:commit' }"
+        # A config whose ruleset requires the central workflow, the central workflow of the pinned engine, and the copy of
+        # the config repository beside github.json.
+        $script:config = Join-Path -Path $directory -ChildPath 'github.json'
+        Set-Content -LiteralPath $script:config -Value '{ "ruleset": { "rules": { "workflows": [ { "repository": ".github", "path": ".github/workflows/org-checks.yml", "sha": "0123456789abcdef0123456789abcdef01234567" } ] } } }'
+        $example = "name: org checks`n"
+        $script:ownExample = Join-Path -Path $directory -ChildPath 'org-checks.yml'
+        Set-Content -LiteralPath $script:ownExample -Value $example -NoNewline
         # Shared with the mocks, whose bodies do not see this file's script scope: a closure keeps the reference.
-        $state = @{ Directory = $directory; Head = $null; Status = @(); TagLines = @("$script:commit`trefs/tags/v1.0.0"); Commit = $script:commit; Stub = $script:stub; Wrapper = (Get-Content -Raw -LiteralPath $script:source) }
+        $state = @{ Directory = $directory; Head = $null; Status = @(); TagLines = @("$script:commit`trefs/tags/v1.0.0"); Commit = $script:commit; Stub = $script:stub; Wrapper = (Get-Content -Raw -LiteralPath $script:source); Example = $example }
         $script:state = $state
 
         Mock git { $global:LASTEXITCODE = 0; $state.TagLines }.GetNewClosure() -ParameterFilter { $args[0] -eq 'ls-remote' }
@@ -38,21 +45,24 @@ Describe 'engine/examples/run.ps1' {
             New-Item -ItemType Directory -Path $engine -Force | Out-Null
             Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'bootstrap.ps1') -Value $state.Stub
             New-Item -ItemType Directory -Path (Join-Path -Path $engine -ChildPath 'examples') -Force | Out-Null
-            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/run.ps1') -Value $state.Wrapper -NoNewline
+            if ($null -ne $state.Wrapper) { Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/run.ps1') -Value $state.Wrapper -NoNewline }
+            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/org-checks.yml') -Value $state.Example -NoNewline
         }.GetNewClosure() -ParameterFilter { $args -contains 'checkout' }
         Mock git { $global:LASTEXITCODE = 0; $state.Head }.GetNewClosure() -ParameterFilter { $args -contains 'rev-parse' }
         # Untracked files show only when asked for, as with status.showUntrackedFiles=no in the user's git config.
         Mock git { $global:LASTEXITCODE = 0; if ($args -contains '--untracked-files=all') { $state.Status } }.GetNewClosure() -ParameterFilter { $args -contains 'status' }
 
         function Initialize-TestEngine {
-            # A checkout already in place at $Head: .engine/.git, the stub engine and the wrapper of the pinned engine.
+            # A checkout already in place at $Head: .engine/.git, the stub engine, and the wrapper and the central workflow
+            # of the pinned engine.
             param([Parameter(Mandatory)][string]$Head)
 
             $engine = Join-Path -Path $script:state.Directory -ChildPath '.engine/engine'
             New-Item -ItemType Directory -Path $engine, (Join-Path -Path $script:state.Directory -ChildPath '.engine/.git') -Force | Out-Null
             Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'bootstrap.ps1') -Value $script:state.Stub
             New-Item -ItemType Directory -Path (Join-Path -Path $engine -ChildPath 'examples') -Force | Out-Null
-            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/run.ps1') -Value $script:state.Wrapper -NoNewline
+            if ($null -ne $script:state.Wrapper) { Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/run.ps1') -Value $script:state.Wrapper -NoNewline }
+            Set-Content -LiteralPath (Join-Path -Path $engine -ChildPath 'examples/org-checks.yml') -Value $script:state.Example -NoNewline
             $script:state.Head = $Head
         }
 
@@ -184,6 +194,7 @@ Describe 'engine/examples/run.ps1' {
 
     It 'warns when the engine fails, and the failure of the engine still stops the run' {
         $script:state.Wrapper = "# The wrapper of a later release.`n"
+        Set-Content -LiteralPath $script:ownExample -Value "name: old checks`n" -NoNewline
         $script:state.Stub = "throw 'the engine failed'"
 
         $failure = $null
@@ -195,8 +206,9 @@ Describe 'engine/examples/run.ps1' {
         }
 
         [string]$failure | Should -BeLike '*the engine failed*'
-        @($warnings).Count | Should -Be 1
+        @($warnings).Count | Should -Be 2
         [string]$warnings[0] | Should -BeLike 'run.ps1 differs from the wrapper of v1.0.0;*'
+        [string]$warnings[1] | Should -BeLike 'org-checks.yml differs from the example of v1.0.0;*'
     }
 
     It 'does not warn when the copy equals the wrapper of the pinned engine apart from <Case>' -ForEach @(
@@ -214,6 +226,84 @@ Describe 'engine/examples/run.ps1' {
 
         $warnings | Should -BeNullOrEmpty
         Get-TestCall | Should -Not -BeNullOrEmpty
+    }
+
+    It 'warns after the engine ran when org-checks.yml differs from the example of the pinned engine' {
+        # A config repository raised the pin but kept the central workflow of the release before.
+        Set-Content -LiteralPath $script:ownExample -Value "name: old checks`n" -NoNewline
+        $script:state.Stub += "`n'engine output'"
+
+        $output = @(& $script:run -WhatIf 3>&1)
+
+        $pinned = [System.IO.Path]::GetFullPath((Join-Path -Path $script:state.Directory -ChildPath '.engine/engine/examples/org-checks.yml'))
+        $warnings = @($output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+        $warnings.Count | Should -Be 1
+        $warnings[0].Message | Should -Be "org-checks.yml differs from the example of v1.0.0; copy $pinned over $script:ownExample, unless you changed it on purpose."
+        $output[-1] | Should -BeOfType ([System.Management.Automation.WarningRecord])
+        $output | Should -Contain 'engine output'
+    }
+
+    It 'warns after the engine ran when there is no org-checks.yml beside github.json' {
+        Remove-Item -LiteralPath $script:ownExample
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $pinned = [System.IO.Path]::GetFullPath((Join-Path -Path $script:state.Directory -ChildPath '.engine/engine/examples/org-checks.yml'))
+        @($warnings).Count | Should -Be 1
+        [string]$warnings[0] | Should -Be "No org-checks.yml beside github.json; copy $pinned to $script:ownExample, the reference copy of the central workflow (engine/README.md, Manual setup)."
+        Get-TestCall | Should -Not -BeNullOrEmpty
+    }
+
+    It 'does not warn when org-checks.yml equals the example of the pinned engine apart from <Case>' -ForEach @(
+        @{ Case = 'CRLF in the copy'; Own = "name: org checks`r`n" }
+        @{ Case = 'the newlines at the end'; Own = "name: org checks`n`n`n" }
+    ) {
+        Set-Content -LiteralPath $script:ownExample -Value $Own -NoNewline
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $warnings | Should -BeNullOrEmpty
+    }
+
+    It 'does not check org-checks.yml when the ruleset requires no workflow of that name (<Case>)' -ForEach @(
+        @{ Case = 'another name'; Path = '.github/workflows/checks.yml' }
+        @{ Case = 'another case'; Path = '.github/workflows/Org-checks.yml' }
+    ) {
+        Set-Content -LiteralPath $script:config -Value ('{ "ruleset": { "rules": { "workflows": [ { "repository": ".github", "path": "' + $Path + '", "sha": "0123456789abcdef0123456789abcdef01234567" } ] } } }')
+        Remove-Item -LiteralPath $script:ownExample
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $warnings | Should -BeNullOrEmpty
+        Get-TestCall | Should -Not -BeNullOrEmpty
+    }
+
+    It 'leaves github.json that is not JSON to the engine and does not check org-checks.yml' {
+        Set-Content -LiteralPath $script:config -Value '{ not json'
+        Set-Content -LiteralPath $script:ownExample -Value "name: old checks`n" -NoNewline
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        $warnings | Should -BeNullOrEmpty
+        Get-TestCall | Should -Not -BeNullOrEmpty
+    }
+
+    It 'warns about run.ps1 first, then about org-checks.yml' {
+        $script:state.Wrapper = "# The wrapper of a later release.`n"
+        Set-Content -LiteralPath $script:ownExample -Value "name: old checks`n" -NoNewline
+
+        & $script:run -WhatIf -WarningVariable warnings -WarningAction SilentlyContinue
+
+        @($warnings).Count | Should -Be 2
+        [string]$warnings[0] | Should -BeLike 'run.ps1 differs from the wrapper of v1.0.0;*'
+        [string]$warnings[1] | Should -BeLike 'org-checks.yml differs from the example of v1.0.0;*'
+    }
+
+    It 'stops before the engine runs when the pinned engine has no engine/examples/run.ps1' {
+        $script:state.Wrapper = $null
+
+        { & $script:run -WhatIf } | Should -Throw -ExpectedMessage 'The engine v1.0.0 has no engine/examples/run.ps1, which every release keeps; report it as a bug of the engine.'
+        Get-TestCall | Should -BeNullOrEmpty
     }
 
     It 'rejects a manifest with a short commit' {

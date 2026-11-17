@@ -75,17 +75,18 @@ Keep `github.json` in a private repository of your organization and run a pinned
    a branch.
 3. Run `./run.ps1 -WhatIf`, then `./run.ps1`. A CI job of that repository can run `./run.ps1 -ValidateOnly`, which needs
    git and access to github.com, but no gh and no credentials.
-4. If your ruleset requires a central workflow, keep its reference copy (such as
-   [engine/examples/org-checks.yml](engine/examples/org-checks.yml)) next to `github.json` under the same file name;
-   every run compares the workflow at the configured commit with it.
+4. Copy [engine/examples/org-checks.yml](engine/examples/org-checks.yml), the central workflow the engine
+   recommends, next to `github.json`: it is the reference copy of the workflow your ruleset requires, and every run
+   compares the workflow at the configured commit with it. While the ruleset requires a workflow named
+   `org-checks.yml`, `run.ps1` warns while the copy is missing or differs from the example of the pinned engine.
 
 ## Upgrading
 
 `configVersion` in the config names its format (`major.minor`). An engine reads its own major version up to its own
 minor and stops before any GitHub call otherwise. The [changelog](CHANGELOG.md) lists every format change with the
 edit it needs (format 2.0, for example, splits `codeSecurity` into `private` and `public`). Upgrade in one pull request of your config repository: raise `Tag` and `Commit`, edit `github.json` as
-the changelog says (it also says when to copy a new `engine/examples/run.ps1` over yours: the pin does not update
-your copy, and a wrapper of 1.1.0 or later warns while it differs from the pinned one), run
+the changelog says, copy `engine/examples/run.ps1` and `engine/examples/org-checks.yml` of the new release over
+yours (the pin updates neither copy, and `run.ps1` warns while they differ from the pinned engine), run
 `./run.ps1 -WhatIf` and put the plan in the pull request. A plan that changes anything is a change to your
 organization and is reviewed as one.
 
